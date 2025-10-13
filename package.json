@@ -7,6 +7,7 @@
     "dev": "concurrently \"npm run server\" \"npm run client\"",
     "server": "cd backend && npm run dev",
     "client": "cd frontend && npm start",
+    "create-admin": "cd backend && npm run create-admin",
     "install-all": "npm install && cd backend && npm install && cd ../frontend && npm install"
   },
   "keywords": ["construction", "supply", "management", "react", "nodejs"],

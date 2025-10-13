@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
-import { motion } from 'framer-motion';
 import { PayPalButtons } from '@paypal/react-paypal-js';
 import { FiCreditCard, FiShield, FiCheck } from 'react-icons/fi';
 import axios from 'axios';
@@ -240,7 +239,7 @@ const Checkout = () => {
       }));
 
       const response = await axios.post(
-        `${process.env.REACT_APP_API_URL || 'http://localhost:5001'}/api/payments/create-payment`,
+        `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/payments/create-payment`,
         {
           items: orderItems,
           total: total,
@@ -270,7 +269,7 @@ const Checkout = () => {
       }));
 
       const response = await axios.post(
-        `${process.env.REACT_APP_API_URL || 'http://localhost:5001'}/api/payments/execute-payment`,
+        `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/payments/execute-payment`,
         {
           paymentId: data.orderID,
           payerId: data.payerID,

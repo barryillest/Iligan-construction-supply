@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { useAuth } from './AuthContext';
@@ -16,7 +16,19 @@ export const useCart = () => {
 export const CartProvider = ({ children }) => {
   const [cart, setCart] = useState([]);
   const [loading, setLoading] = useState(false);
-  const { user, isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuth();
+
+  const fetchCart = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/users/cart`);
+      setCart(response.data.cart || []);
+    } catch (error) {
+      console.error('Error fetching cart:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -24,19 +36,7 @@ export const CartProvider = ({ children }) => {
     } else {
       setCart([]);
     }
-  }, [isAuthenticated]);
-
-  const fetchCart = async () => {
-    try {
-      setLoading(true);
-      const response = await axios.get(`${process.env.REACT_APP_API_URL || 'http://localhost:5001'}/api/users/cart`);
-      setCart(response.data.cart || []);
-    } catch (error) {
-      console.error('Error fetching cart:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [isAuthenticated, fetchCart]);
 
   const addToCart = async (product, quantity = 1) => {
     if (!isAuthenticated) {
@@ -54,7 +54,7 @@ export const CartProvider = ({ children }) => {
       };
 
       const response = await axios.post(
-        `${process.env.REACT_APP_API_URL || 'http://localhost:5001'}/api/users/cart/add`,
+        `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/users/cart/add`,
         cartItem
       );
 
@@ -69,7 +69,7 @@ export const CartProvider = ({ children }) => {
   const updateCartItem = async (productId, quantity) => {
     try {
       const response = await axios.put(
-        `${process.env.REACT_APP_API_URL || 'http://localhost:5001'}/api/users/cart/update`,
+        `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/users/cart/update`,
         { productId, quantity }
       );
 
@@ -83,7 +83,7 @@ export const CartProvider = ({ children }) => {
   const removeFromCart = async (productId) => {
     try {
       const response = await axios.delete(
-        `${process.env.REACT_APP_API_URL || 'http://localhost:5001'}/api/users/cart/remove/${productId}`
+        `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/users/cart/remove/${productId}`
       );
 
       setCart(response.data.cart);
@@ -96,8 +96,8 @@ export const CartProvider = ({ children }) => {
 
   const clearCart = async () => {
     try {
-      const response = await axios.delete(
-        `${process.env.REACT_APP_API_URL || 'http://localhost:5001'}/api/users/cart/clear`
+      await axios.delete(
+        `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/users/cart/clear`
       );
 
       setCart([]);

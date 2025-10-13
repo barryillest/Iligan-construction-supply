@@ -1,8 +1,27 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
 const AuthContext = createContext();
+
+const extractErrorMessage = (error, fallbackMessage) => {
+  if (error?.response) {
+    const { data, statusText } = error.response;
+    if (typeof data === 'string' && data.trim().length > 0) {
+      return data;
+    }
+    if (data?.message) {
+      return data.message;
+    }
+    if (statusText) {
+      return statusText;
+    }
+  }
+  if (error?.message) {
+    return error.message;
+  }
+  return fallbackMessage;
+};
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
@@ -17,17 +36,17 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [token, setToken] = useState(localStorage.getItem('token'));
 
-  useEffect(() => {
-    if (token) {
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      fetchCurrentUser();
-    } else {
-      setLoading(false);
-    }
-  }, [token]);
+  const logout = useCallback(() => {
+    localStorage.removeItem('token');
+    setToken(null);
+    setUser(null);
+    delete axios.defaults.headers.common['Authorization'];
+    toast.success('Logged out successfully');
+  }, []);
 
-  const fetchCurrentUser = async () => {
+  const fetchCurrentUser = useCallback(async () => {
     try {
+      setLoading(true);
       const response = await axios.get(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/auth/me`);
       setUser(response.data);
     } catch (error) {
@@ -36,7 +55,16 @@ export const AuthProvider = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [logout]);
+
+  useEffect(() => {
+    if (token) {
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      fetchCurrentUser();
+    } else {
+      setLoading(false);
+    }
+  }, [token, fetchCurrentUser]);
 
   const register = async (email, password, name) => {
     try {
@@ -54,11 +82,12 @@ export const AuthProvider = ({ children }) => {
       axios.defaults.headers.common['Authorization'] = `Bearer ${authToken}`;
 
       toast.success(`Welcome, ${user.name}!`);
-      return { success: true };
+      return { success: true, user };
     } catch (error) {
       console.error('Registration error:', error);
-      toast.error(error.response?.data?.message || 'Registration failed');
-      return { success: false, error: error.response?.data?.message || 'Registration failed' };
+      const message = extractErrorMessage(error, 'Registration failed');
+      toast.error(message);
+      return { success: false, error: message };
     } finally {
       setLoading(false);
     }
@@ -80,11 +109,12 @@ export const AuthProvider = ({ children }) => {
       axios.defaults.headers.common['Authorization'] = `Bearer ${authToken}`;
 
       toast.success(`Welcome back, ${user.name}!`);
-      return { success: true };
+      return { success: true, user };
     } catch (error) {
       console.error('Login error:', error);
-      toast.error(error.response?.data?.message || 'Login failed');
-      return { success: false, error: error.response?.data?.message || 'Login failed' };
+      const message = extractErrorMessage(error, 'Login failed');
+      toast.error(message);
+      return { success: false, error: message };
     } finally {
       setLoading(false);
     }
@@ -106,22 +136,15 @@ export const AuthProvider = ({ children }) => {
       axios.defaults.headers.common['Authorization'] = `Bearer ${authToken}`;
 
       toast.success(`Welcome back, ${user.name}!`);
-      return { success: true };
+      return { success: true, user };
     } catch (error) {
       console.error('Google login error:', error);
-      toast.error(error.response?.data?.message || 'Login failed');
-      return { success: false, error: error.response?.data?.message || 'Login failed' };
+      const message = extractErrorMessage(error, 'Login failed');
+      toast.error(message);
+      return { success: false, error: message };
     } finally {
       setLoading(false);
     }
-  };
-
-  const logout = () => {
-    localStorage.removeItem('token');
-    setToken(null);
-    setUser(null);
-    delete axios.defaults.headers.common['Authorization'];
-    toast.success('Logged out successfully');
   };
 
   const value = {

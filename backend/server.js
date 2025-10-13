@@ -9,13 +9,26 @@ const { connectDB } = require('./config/database');
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 5001;
+const DEFAULT_PORT = Number(process.env.PORT) || 5000;
+const MAX_PORT_ATTEMPTS = 5;
+const isProduction = process.env.NODE_ENV === 'production';
 
 // Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
-  message: 'Too many requests from this IP, please try again later.'
+  max: isProduction ? 100 : 1000,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => {
+    if (isProduction) {
+      return false;
+    }
+    const localIps = ['::1', '127.0.0.1', '::ffff:127.0.0.1'];
+    return localIps.includes(req.ip);
+  },
+  message: {
+    message: 'Too many requests from this IP, please try again later.'
+  }
 });
 
 // Middleware
@@ -59,10 +72,31 @@ const startServer = async () => {
   try {
     await connectDB();
 
-    app.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
-      console.log(`Environment: ${process.env.NODE_ENV}`);
-    });
+    const attemptListen = (port, attempt = 0) => {
+      const server = app.listen(port, () => {
+        console.log(`Server running on port ${port}`);
+        console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+      });
+
+      server.on('error', (err) => {
+        if (err && err.code === 'EADDRINUSE') {
+          const nextAttempt = attempt + 1;
+          if (nextAttempt > MAX_PORT_ATTEMPTS) {
+            console.error(`Port ${port} is in use and no fallback ports are available after ${MAX_PORT_ATTEMPTS} attempts.`);
+            process.exit(1);
+          } else {
+            const nextPort = port + 1;
+            console.warn(`Port ${port} is in use. Trying port ${nextPort} (attempt ${nextAttempt}/${MAX_PORT_ATTEMPTS})...`);
+            attemptListen(nextPort, nextAttempt);
+          }
+        } else {
+          console.error('Failed to start server:', err);
+          process.exit(1);
+        }
+      });
+    };
+
+    attemptListen(DEFAULT_PORT);
   } catch (error) {
     console.error('Failed to start server:', error);
     process.exit(1);

@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { motion } from 'framer-motion';
-import { FiSearch, FiFilter, FiGrid, FiList, FiShoppingCart } from 'react-icons/fi';
+import { FiSearch, FiGrid, FiList, FiShoppingCart, FiEdit3, FiTrash2 } from 'react-icons/fi';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { useCart } from '../contexts/CartContext';
@@ -206,6 +206,39 @@ const AddToCartButton = styled.button`
   }
 `;
 
+const AdminActions = styled.div`
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  width: 100%;
+`;
+
+const AdminActionButton = styled.button`
+  flex: 1;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  border: 1px solid ${({ danger }) => (danger ? 'rgba(237, 73, 86, 0.4)' : 'var(--border-color)')};
+  background: ${({ danger }) => (danger ? 'rgba(237, 73, 86, 0.15)' : 'rgba(255, 255, 255, 0.05)')};
+  color: ${({ danger }) => (danger ? 'rgba(255, 205, 207, 0.9)' : 'var(--text-primary)')};
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: ${({ danger }) => (danger ? 'rgba(237, 73, 86, 0.25)' : 'rgba(255, 255, 255, 0.12)')};
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+`;
+
 const LoadingSpinner = styled.div`
   display: flex;
   justify-content: center;
@@ -261,61 +294,85 @@ const Products = () => {
   const [categories, setCategories] = useState([]);
 
   const { addToCart } = useCart();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
+  const navigate = useNavigate();
+  const [processingSku, setProcessingSku] = useState(null);
+  const isAdmin = user?.role === 'admin';
 
   useEffect(() => {
+    let isMounted = true;
+
+    const fetchCategories = async () => {
+      try {
+        const response = await axios.get(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/products/categories/list`);
+        if (isMounted) {
+          setCategories(response.data.categories || []);
+        }
+      } catch (error) {
+        console.error('Error fetching categories:', error);
+      }
+    };
+
     fetchCategories();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   useEffect(() => {
     setPage(1);
     setProducts([]);
-    fetchProducts(true);
+    setHasMore(true);
   }, [search, category, sortBy]);
 
-  const fetchCategories = async () => {
-    try {
-      const response = await axios.get(`${process.env.REACT_APP_API_URL || 'http://localhost:5001'}/api/products/categories/list`);
-      setCategories(response.data.categories || []);
-    } catch (error) {
-      console.error('Error fetching categories:', error);
-    }
-  };
+  useEffect(() => {
+    let isCancelled = false;
 
-  const fetchProducts = async (reset = false) => {
-    if (loading) return;
+    const loadProducts = async () => {
+      setLoading(true);
+      try {
+        const response = await axios.get(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/products`, {
+          params: {
+            search,
+            category,
+            sort: sortBy,
+            page,
+            limit: 20
+          }
+        });
 
-    setLoading(true);
-    try {
-      const currentPage = reset ? 1 : page;
-      const response = await axios.get(`${process.env.REACT_APP_API_URL || 'http://localhost:5001'}/api/products`, {
-        params: {
-          search,
-          category,
-          sort: sortBy,
-          page: currentPage,
-          limit: 20
+        if (isCancelled) {
+          return;
         }
-      });
 
-      const newProducts = response.data.products || [];
-      const pagination = response.data.pagination || {};
+        const newProducts = response.data.products || [];
+        const pagination = response.data.pagination || {};
 
-      if (reset) {
-        setProducts(newProducts);
-      } else {
-        setProducts(prev => [...prev, ...newProducts]);
+        setProducts(prev => (page === 1 ? newProducts : [...prev, ...newProducts]));
+        setHasMore(pagination.hasMore || false);
+      } catch (error) {
+        if (!isCancelled) {
+          console.error('Error fetching products:', error);
+          toast.error('Failed to load products');
+        }
+      } finally {
+        if (!isCancelled) {
+          setLoading(false);
+        }
       }
+    };
 
-      setHasMore(pagination.hasMore || false);
-      if (!reset) {
-        setPage(prev => prev + 1);
-      }
-    } catch (error) {
-      console.error('Error fetching products:', error);
-      toast.error('Failed to load products');
-    } finally {
-      setLoading(false);
+    loadProducts();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [search, category, sortBy, page]);
+
+  const handleLoadMore = () => {
+    if (!loading && hasMore) {
+      setPage(prev => prev + 1);
     }
   };
 
@@ -329,6 +386,34 @@ const Products = () => {
     }
 
     addToCart(product);
+  };
+
+  const handleAdminEdit = (e, product) => {
+    e.preventDefault();
+    e.stopPropagation();
+    navigate('/admin/products', { state: { focusSku: product.sku } });
+  };
+
+  const handleAdminDelete = async (e, product) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const confirmed = window.confirm(`Delete ${product.name}? This action cannot be undone.`);
+    if (!confirmed) {
+      return;
+    }
+
+    setProcessingSku(product.sku);
+    try {
+      await axios.delete(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/products/${encodeURIComponent(product.sku)}`);
+      toast.success('Product removed.');
+      setProducts(prev => prev.filter(item => item.sku !== product.sku));
+    } catch (error) {
+      console.error('Failed to delete product', error);
+      toast.error(error.response?.data?.message || 'Failed to delete product.');
+    } finally {
+      setProcessingSku(null);
+    }
   };
 
   const formatPrice = (price) => {
@@ -417,13 +502,30 @@ const Products = () => {
               {view === 'list' && product.shortDescription && (
                 <ProductDescription>{product.shortDescription}</ProductDescription>
               )}
-              <AddToCartButton
-                onClick={(e) => handleAddToCart(e, product)}
-                disabled={!isAuthenticated}
-              >
-                <FiShoppingCart size={16} />
-                Add to Cart
-              </AddToCartButton>
+              {isAdmin ? (
+                <AdminActions>
+                  <AdminActionButton onClick={(e) => handleAdminEdit(e, product)}>
+                    <FiEdit3 size={16} />
+                    Edit
+                  </AdminActionButton>
+                  <AdminActionButton
+                    danger
+                    onClick={(e) => handleAdminDelete(e, product)}
+                    disabled={processingSku === product.sku}
+                  >
+                    <FiTrash2 size={16} />
+                    {processingSku === product.sku ? 'Removing...' : 'Delete'}
+                  </AdminActionButton>
+                </AdminActions>
+              ) : (
+                <AddToCartButton
+                  onClick={(e) => handleAddToCart(e, product)}
+                  disabled={!isAuthenticated}
+                >
+                  <FiShoppingCart size={16} />
+                  Add to Cart
+                </AddToCartButton>
+              )}
             </ProductInfo>
           </ProductCard>
         ))}
@@ -437,7 +539,7 @@ const Products = () => {
 
       {hasMore && !loading && products.length > 0 && (
         <LoadMoreButton
-          onClick={() => fetchProducts()}
+          onClick={handleLoadMore}
           disabled={loading}
         >
           Load More Products

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import styled from 'styled-components';
 import { motion } from 'framer-motion';
 import { FiTrash2, FiPlus, FiMinus, FiShoppingBag, FiArrowRight } from 'react-icons/fi';
@@ -256,8 +256,6 @@ const ShopButton = styled(Link)`
 
 const Cart = () => {
   const { cart, updateCartItem, removeFromCart, getCartTotal, loading } = useCart();
-  const navigate = useNavigate();
-
   const handleQuantityChange = (productId, newQuantity) => {
     if (newQuantity < 1) {
       removeFromCart(productId);

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import styled from 'styled-components';
 import { motion } from 'framer-motion';
-import { FiShoppingCart, FiUser, FiMenu, FiX, FiHome, FiPackage, FiLogOut } from 'react-icons/fi';
+import { FiShoppingCart, FiUser, FiMenu, FiX, FiPackage, FiLogOut, FiTool } from 'react-icons/fi';
 import { useAuth } from '../contexts/AuthContext';
 import { useCart } from '../contexts/CartContext';
 
@@ -299,7 +299,10 @@ const Navbar = () => {
     navigate('/');
   };
 
-  const isActiveLink = (path) => {
+  const isActiveLink = (path, matchPrefix = false) => {
+    if (matchPrefix) {
+      return location.pathname.startsWith(path) ? 'active' : '';
+    }
     return location.pathname === path ? 'active' : '';
   };
 
@@ -325,11 +328,16 @@ const Navbar = () => {
             <NavLink to="/products" className={isActiveLink('/products')}>
               Products
             </NavLink>
+            {user?.role === 'admin' && (
+              <NavLink to="/admin" className={isActiveLink('/admin', true)}>
+                Admin Panel
+              </NavLink>
+            )}
             <NavLink to="/about" className={isActiveLink('/about')}>
               About Us
             </NavLink>
           </NavLinks>
-          {user && (
+          {user && user.role !== 'admin' && (
             <CartButton to="/cart">
               <FiShoppingCart size={20} />
               {cartItemCount > 0 && (
@@ -364,6 +372,15 @@ const Navbar = () => {
                     <FiUser size={16} />
                     Profile
                   </DropdownItem>
+                  {user.role === 'admin' && (
+                    <DropdownItem
+                      to="/admin"
+                      onClick={() => setShowUserMenu(false)}
+                    >
+                      <FiTool size={16} />
+                      Admin Panel
+                    </DropdownItem>
+                  )}
                   <DropdownItem
                     to="/orders"
                     onClick={() => setShowUserMenu(false)}

@@ -5,6 +5,18 @@ const User = require('../models/User');
 
 const router = express.Router();
 
+const getAuthenticatedUser = async (req) => {
+  if (req.authUser) {
+    return req.authUser.reload();
+  }
+  if (req.user?.userId) {
+    return User.findByPk(req.user.userId);
+  }
+  return null;
+};
+
+const ensureArray = (value) => (Array.isArray(value) ? value : []);
+
 // Configure PayPal
 paypal.configure({
   mode: process.env.PAYPAL_MODE || 'sandbox',
@@ -84,7 +96,7 @@ router.post('/execute-payment', authenticateToken, async (req, res) => {
       } else {
         try {
           // Save order to user's orders
-          const user = await User.findById(req.user.userId);
+          const user = await getAuthenticatedUser(req);
           if (user) {
             const newOrder = {
               orderId: payment.id,
@@ -95,8 +107,9 @@ router.post('/execute-payment', authenticateToken, async (req, res) => {
               createdAt: new Date()
             };
 
-            user.orders.push(newOrder);
-            user.cart = []; // Clear cart after successful payment
+            const updatedOrders = [...ensureArray(user.orders), newOrder];
+            user.set('orders', updatedOrders);
+            user.set('cart', []); // Clear cart after successful payment
             await user.save();
           }
 

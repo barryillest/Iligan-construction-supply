@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import styled from 'styled-components';
 import { motion } from 'framer-motion';
@@ -253,29 +253,58 @@ const Register = () => {
 
   useEffect(() => {
     if (user) {
-      navigate('/');
+      const destination = user.role === 'admin' ? '/admin' : '/';
+      navigate(destination, { replace: true });
     }
   }, [user, navigate]);
 
-  useEffect(() => {
-    // Load Google Sign-In script
-    if (!window.google) {
-      const script = document.createElement('script');
-      script.src = 'https://accounts.google.com/gsi/client';
-      script.async = true;
-      script.defer = true;
-      document.body.appendChild(script);
+  const googleClientId = process.env.REACT_APP_GOOGLE_CLIENT_ID;
+  const googleEnabled = !!googleClientId && !/your_google_client_id_here/i.test(googleClientId);
 
-      script.onload = () => {
-        if (window.google) {
-          window.google.accounts.id.initialize({
-            client_id: process.env.REACT_APP_GOOGLE_CLIENT_ID,
-            callback: handleGoogleResponse,
-          });
-        }
-      };
+  const handleGoogleResponse = useCallback(async (response) => {
+    try {
+      const result = await loginWithGoogle(response.credential);
+      if (result.success) {
+        const destination = result.user?.role === 'admin' ? '/admin' : '/';
+        navigate(destination, { replace: true });
+      }
+    } catch (error) {
+      console.error('Google sign-in error:', error);
     }
-  }, []);
+  }, [loginWithGoogle, navigate]);
+
+  useEffect(() => {
+    if (!googleEnabled) {
+      return;
+    }
+
+    const initializeGoogle = () => {
+      if (window.google) {
+        window.google.accounts.id.initialize({
+          client_id: googleClientId,
+          callback: handleGoogleResponse,
+        });
+      }
+    };
+
+    if (window.google) {
+      initializeGoogle();
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.src = 'https://accounts.google.com/gsi/client';
+    script.async = true;
+    script.defer = true;
+    script.onload = initializeGoogle;
+    document.body.appendChild(script);
+
+    return () => {
+      if (script.parentNode) {
+        script.parentNode.removeChild(script);
+      }
+    };
+  }, [googleEnabled, googleClientId, handleGoogleResponse]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -323,19 +352,13 @@ const Register = () => {
 
     const result = await register(formData.email, formData.password, formData.name);
     if (result.success) {
-      navigate('/');
-    }
-  };
-
-  const handleGoogleResponse = async (response) => {
-    try {
-      await loginWithGoogle(response.credential);
-    } catch (error) {
-      console.error('Google sign-in error:', error);
+      const destination = result.user?.role === 'admin' ? '/admin' : '/';
+      navigate(destination, { replace: true });
     }
   };
 
   const handleGoogleSignIn = () => {
+    if (!googleEnabled) return;
     if (window.google) {
       window.google.accounts.id.prompt();
     }
@@ -463,7 +486,8 @@ const Register = () => {
         <GoogleSignInButton
           type="button"
           onClick={handleGoogleSignIn}
-          disabled={loading}
+          disabled={loading || !googleEnabled}
+          title={googleEnabled ? undefined : 'Google Sign-In not configured'}
         >
           <GoogleIcon viewBox="0 0 24 24">
             <path
@@ -483,7 +507,7 @@ const Register = () => {
               d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
             />
           </GoogleIcon>
-          Continue with Google
+          {googleEnabled ? 'Continue with Google' : 'Google Sign-In unavailable'}
         </GoogleSignInButton>
 
         <LoginLink>

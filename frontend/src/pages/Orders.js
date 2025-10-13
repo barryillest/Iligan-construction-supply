@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import styled from 'styled-components';
 import { motion } from 'framer-motion';
-import { FiPackage, FiCalendar, FiDollarSign, FiTruck, FiShoppingBag } from 'react-icons/fi';
+import { FiPackage, FiCalendar, FiDollarSign, FiShoppingBag } from 'react-icons/fi';
 import axios from 'axios';
 
 const OrdersContainer = styled.div`
@@ -264,7 +264,7 @@ const Orders = () => {
   const fetchOrders = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`${process.env.REACT_APP_API_URL || 'http://localhost:5001'}/api/users/orders`);
+      const response = await axios.get(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/users/orders`);
       setOrders(response.data.orders || []);
     } catch (error) {
       console.error('Error fetching orders:', error);
@@ -286,17 +286,6 @@ const Orders = () => {
       month: 'short',
       day: 'numeric'
     });
-  };
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'pending': return 'var(--warning-color)';
-      case 'processing': return 'var(--accent-color)';
-      case 'shipped': return 'var(--success-color)';
-      case 'delivered': return 'var(--success-color)';
-      case 'cancelled': return 'var(--error-color)';
-      default: return 'var(--text-secondary)';
-    }
   };
 
   if (loading) {

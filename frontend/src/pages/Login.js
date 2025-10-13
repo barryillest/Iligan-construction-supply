@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import styled from 'styled-components';
 import { motion } from 'framer-motion';
@@ -22,9 +22,12 @@ const LoginCard = styled(motion.div)`
   text-align: center;
 `;
 
-const Logo = styled.div`
-  font-size: 48px;
-  margin-bottom: 16px;
+const Logo = styled.img`
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin: 0 auto 16px;
 `;
 
 const Title = styled.h1`
@@ -246,34 +249,62 @@ const Login = () => {
     password: ''
   });
   const [errors, setErrors] = useState({});
-  const [showEmailForm, setShowEmailForm] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     if (user) {
-      navigate('/');
+      const destination = user.role === 'admin' ? '/admin' : '/';
+      navigate(destination, { replace: true });
     }
   }, [user, navigate]);
 
-  useEffect(() => {
-    // Load Google Sign-In script
-    if (!window.google) {
-      const script = document.createElement('script');
-      script.src = 'https://accounts.google.com/gsi/client';
-      script.async = true;
-      script.defer = true;
-      document.body.appendChild(script);
+  const googleClientId = process.env.REACT_APP_GOOGLE_CLIENT_ID;
+  const googleEnabled = !!googleClientId && !/your_google_client_id_here/i.test(googleClientId);
 
-      script.onload = () => {
-        if (window.google) {
-          window.google.accounts.id.initialize({
-            client_id: process.env.REACT_APP_GOOGLE_CLIENT_ID,
-            callback: handleGoogleResponse,
-          });
-        }
-      };
+  const handleGoogleResponse = useCallback(async (response) => {
+    try {
+      const result = await loginWithGoogle(response.credential);
+      if (result.success) {
+        const destination = result.user?.role === 'admin' ? '/admin' : '/';
+        navigate(destination, { replace: true });
+      }
+    } catch (error) {
+      console.error('Google sign-in error:', error);
     }
-  }, []);
+  }, [loginWithGoogle, navigate]);
+
+  useEffect(() => {
+    if (!googleEnabled) {
+      return;
+    }
+
+    const initializeGoogle = () => {
+      if (window.google) {
+        window.google.accounts.id.initialize({
+          client_id: googleClientId,
+          callback: handleGoogleResponse,
+        });
+      }
+    };
+
+    if (window.google) {
+      initializeGoogle();
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.src = 'https://accounts.google.com/gsi/client';
+    script.async = true;
+    script.defer = true;
+    script.onload = initializeGoogle;
+    document.body.appendChild(script);
+
+    return () => {
+      if (script.parentNode) {
+        script.parentNode.removeChild(script);
+      }
+    };
+  }, [googleEnabled, googleClientId, handleGoogleResponse]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -311,19 +342,13 @@ const Login = () => {
 
     const result = await login(formData.email, formData.password);
     if (result.success) {
-      navigate('/');
-    }
-  };
-
-  const handleGoogleResponse = async (response) => {
-    try {
-      await loginWithGoogle(response.credential);
-    } catch (error) {
-      console.error('Google sign-in error:', error);
+      const destination = result.user?.role === 'admin' ? '/admin' : '/';
+      navigate(destination, { replace: true });
     }
   };
 
   const handleGoogleSignIn = () => {
+    if (!googleEnabled) return;
     if (window.google) {
       window.google.accounts.id.prompt();
     }
@@ -336,77 +361,76 @@ const Login = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
       >
-        <Logo>🏗️</Logo>
+        <Logo src="/logo.png" alt="Iligan Construction Supply logo" />
         <Title>Welcome back</Title>
         <Subtitle>
           Sign in to your account and continue shopping for construction supplies
         </Subtitle>
 
-        {showEmailForm && (
-          <>
-            <Form onSubmit={handleSubmit}>
-              <InputGroup>
-                <Label htmlFor="email">Email Address</Label>
+        <>
+          <Form onSubmit={handleSubmit}>
+            <InputGroup>
+              <Label htmlFor="email">Email Address</Label>
+              <Input
+                id="email"
+                name="email"
+                type="email"
+                placeholder="Enter your email"
+                value={formData.email}
+                onChange={handleInputChange}
+                disabled={loading}
+              />
+              {errors.email && <ErrorMessage>{errors.email}</ErrorMessage>}
+            </InputGroup>
+
+            <InputGroup>
+              <Label htmlFor="password">Password</Label>
+              <InputWrapper>
                 <Input
-                  id="email"
-                  name="email"
-                  type="email"
-                  placeholder="Enter your email"
-                  value={formData.email}
+                  id="password"
+                  name="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Enter your password"
+                  value={formData.password}
                   onChange={handleInputChange}
                   disabled={loading}
+                  hasIcon={true}
                 />
-                {errors.email && <ErrorMessage>{errors.email}</ErrorMessage>}
-              </InputGroup>
+                <PasswordToggle
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  disabled={loading}
+                >
+                  {showPassword ? (
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                      <path d="M1 1l22 22"/>
+                    </svg>
+                  ) : (
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                      <circle cx="12" cy="12" r="3"/>
+                    </svg>
+                  )}
+                </PasswordToggle>
+              </InputWrapper>
+              {errors.password && <ErrorMessage>{errors.password}</ErrorMessage>}
+            </InputGroup>
 
-              <InputGroup>
-                <Label htmlFor="password">Password</Label>
-                <InputWrapper>
-                  <Input
-                    id="password"
-                    name="password"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="Enter your password"
-                    value={formData.password}
-                    onChange={handleInputChange}
-                    disabled={loading}
-                    hasIcon={true}
-                  />
-                  <PasswordToggle
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    disabled={loading}
-                  >
-                    {showPassword ? (
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
-                        <path d="M1 1l22 22"/>
-                      </svg>
-                    ) : (
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                        <circle cx="12" cy="12" r="3"/>
-                      </svg>
-                    )}
-                  </PasswordToggle>
-                </InputWrapper>
-                {errors.password && <ErrorMessage>{errors.password}</ErrorMessage>}
-              </InputGroup>
+            <LoginButton type="submit" disabled={loading}>
+              {loading ? <LoadingSpinner /> : 'Sign In'}
+            </LoginButton>
+          </Form>
 
-              <LoginButton type="submit" disabled={loading}>
-                {loading ? <LoadingSpinner /> : 'Sign In'}
-              </LoginButton>
-            </Form>
-
-            <Divider>
-              <span>or</span>
-            </Divider>
-          </>
-        )}
+          <Divider>
+            <span>or</span>
+          </Divider>
+        </>
 
         <GoogleSignInButton
           onClick={handleGoogleSignIn}
-          disabled={loading}
+          disabled={loading || !googleEnabled}
+          title={googleEnabled ? undefined : 'Google Sign-In not configured'}
         >
           {loading ? (
             <LoadingSpinner />
@@ -430,7 +454,7 @@ const Login = () => {
               />
             </GoogleIcon>
           )}
-          {loading ? 'Signing in...' : 'Continue with Google'}
+          {loading ? 'Signing in...' : (googleEnabled ? 'Continue with Google' : 'Google Sign-In unavailable')}
         </GoogleSignInButton>
 
         <RegisterLink>
@@ -442,3 +466,4 @@ const Login = () => {
 };
 
 export default Login;
+

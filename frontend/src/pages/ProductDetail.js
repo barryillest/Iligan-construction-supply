@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { motion } from 'framer-motion';
-import { FiArrowLeft, FiShoppingCart, FiStar, FiTruck, FiShield } from 'react-icons/fi';
+import { FiArrowLeft, FiShoppingCart, FiStar, FiTruck, FiShield, FiEdit3, FiTrash2 } from 'react-icons/fi';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { useCart } from '../contexts/CartContext';
@@ -176,6 +176,40 @@ const BuyNowButton = styled.button`
   }
 `;
 
+const AdminActions = styled.div`
+  display: flex;
+  gap: 12px;
+  margin-bottom: 32px;
+  flex-wrap: wrap;
+`;
+
+const AdminButton = styled.button`
+  flex: 1;
+  min-width: 140px;
+  padding: 14px 18px;
+  border-radius: 12px;
+  border: 1px solid ${({ danger }) => (danger ? 'rgba(237, 73, 86, 0.4)' : 'var(--border-color)')};
+  background: ${({ danger }) => (danger ? 'rgba(237, 73, 86, 0.15)' : 'rgba(255, 255, 255, 0.05)')};
+  color: ${({ danger }) => (danger ? 'rgba(255, 205, 207, 0.9)' : 'var(--text-primary)')};
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: ${({ danger }) => (danger ? 'rgba(237, 73, 86, 0.25)' : 'rgba(255, 255, 255, 0.12)')};
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+`;
+
 const ProductMeta = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -249,20 +283,18 @@ const ProductDetail = () => {
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const { addToCart } = useCart();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
+  const isAdmin = user?.role === 'admin';
 
-  useEffect(() => {
-    fetchProduct();
-  }, [sku]);
-
-  const fetchProduct = async () => {
+  const fetchProduct = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
       const response = await axios.get(
-        `${process.env.REACT_APP_API_URL || 'http://localhost:5001'}/api/products/${sku}`
+        `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/products/${sku}`
       );
       setProduct(response.data);
     } catch (error) {
@@ -271,7 +303,11 @@ const ProductDetail = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [sku]);
+
+  useEffect(() => {
+    fetchProduct();
+  }, [fetchProduct]);
 
   const handleAddToCart = () => {
     if (!isAuthenticated) {
@@ -292,6 +328,34 @@ const ProductDetail = () => {
 
     handleAddToCart();
     navigate('/checkout');
+  };
+
+  const handleAdminEdit = () => {
+    if (!product) return;
+    navigate('/admin/products', { state: { focusSku: product.sku } });
+  };
+
+  const handleAdminDelete = async () => {
+    if (!product) return;
+
+    const confirmed = window.confirm(`Delete ${product.name}? This action cannot be undone.`);
+    if (!confirmed) {
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      await axios.delete(
+        `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/products/${encodeURIComponent(product.sku)}`
+      );
+      toast.success('Product removed.');
+      navigate('/admin/products', { replace: true });
+    } catch (error) {
+      console.error('Failed to delete product', error);
+      toast.error(error.response?.data?.message || 'Failed to delete product.');
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const formatPrice = (price) => {
@@ -390,31 +454,50 @@ const ProductDetail = () => {
               </Features>
             )}
 
-            <Actions>
-              <AddToCartButton
-                onClick={handleAddToCart}
-                disabled={!isAuthenticated}
-              >
-                <FiShoppingCart size={20} />
-                Add to Cart
-              </AddToCartButton>
-              <BuyNowButton
-                onClick={handleBuyNow}
-                disabled={!isAuthenticated}
-              >
-                Buy Now
-              </BuyNowButton>
-            </Actions>
+            {isAdmin ? (
+              <AdminActions>
+                <AdminButton onClick={handleAdminEdit}>
+                  <FiEdit3 size={18} />
+                  Edit Product
+                </AdminButton>
+                <AdminButton
+                  danger
+                  onClick={handleAdminDelete}
+                  disabled={isDeleting}
+                >
+                  <FiTrash2 size={18} />
+                  {isDeleting ? 'Removing...' : 'Delete Product'}
+                </AdminButton>
+              </AdminActions>
+            ) : (
+              <>
+                <Actions>
+                  <AddToCartButton
+                    onClick={handleAddToCart}
+                    disabled={!isAuthenticated}
+                  >
+                    <FiShoppingCart size={20} />
+                    Add to Cart
+                  </AddToCartButton>
+                  <BuyNowButton
+                    onClick={handleBuyNow}
+                    disabled={!isAuthenticated}
+                  >
+                    Buy Now
+                  </BuyNowButton>
+                </Actions>
 
-            {!isAuthenticated && (
-              <div style={{
-                fontSize: '14px',
-                color: 'var(--text-muted)',
-                textAlign: 'center',
-                marginBottom: '20px'
-              }}>
-                Please sign in to purchase this item
-              </div>
+                {!isAuthenticated && (
+                  <div style={{
+                    fontSize: '14px',
+                    color: 'var(--text-muted)',
+                    textAlign: 'center',
+                    marginBottom: '20px'
+                  }}>
+                    Please sign in to purchase this item
+                  </div>
+                )}
+              </>
             )}
           </ProductInfo>
         </ProductGrid>

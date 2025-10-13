@@ -32,7 +32,7 @@ router.post('/register', async (req, res) => {
     });
 
     const jwtToken = jwt.sign(
-      { userId: user.id, email: user.email },
+      { userId: user.id, email: user.email, role: user.role },
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
@@ -49,6 +49,14 @@ router.post('/register', async (req, res) => {
     });
   } catch (error) {
     console.error('Registration error:', error);
+    // Surface common, helpful error messages
+    if (error.name === 'SequelizeUniqueConstraintError') {
+      return res.status(400).json({ message: 'User already exists with this email' });
+    }
+    if (error.name === 'SequelizeValidationError') {
+      const firstMsg = error.errors?.[0]?.message || 'Validation error';
+      return res.status(400).json({ message: firstMsg });
+    }
     res.status(500).json({ message: 'Registration failed' });
   }
 });
@@ -73,7 +81,7 @@ router.post('/login', async (req, res) => {
     }
 
     const jwtToken = jwt.sign(
-      { userId: user.id, email: user.email },
+      { userId: user.id, email: user.email, role: user.role },
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
@@ -98,6 +106,10 @@ router.post('/login', async (req, res) => {
 router.post('/google', async (req, res) => {
   try {
     const { token } = req.body;
+
+    if (!process.env.GOOGLE_CLIENT_ID) {
+      return res.status(500).json({ message: 'Google Sign-In not configured on server' });
+    }
 
     const ticket = await client.verifyIdToken({
       idToken: token,
@@ -130,7 +142,7 @@ router.post('/google', async (req, res) => {
     }
 
     const jwtToken = jwt.sign(
-      { userId: user.id, email: user.email },
+      { userId: user.id, email: user.email, role: user.role },
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
@@ -147,7 +159,11 @@ router.post('/google', async (req, res) => {
     });
   } catch (error) {
     console.error('Google auth error:', error);
-    res.status(400).json({ message: 'Invalid Google token' });
+    // Provide clearer hints during development
+    const hint = process.env.NODE_ENV !== 'production'
+      ? ' Check GOOGLE_CLIENT_ID and frontend REACT_APP_GOOGLE_CLIENT_ID match, and that http://localhost:3000 is an authorized JavaScript origin.'
+      : '';
+    res.status(400).json({ message: `Invalid Google token.${hint}`.trim() });
   }
 });
 
@@ -160,13 +176,37 @@ const authenticateToken = (req, res, next) => {
     return res.status(401).json({ message: 'Access token required' });
   }
 
-  jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+  jwt.verify(token, process.env.JWT_SECRET, async (err, decoded) => {
     if (err) {
       return res.status(403).json({ message: 'Invalid or expired token' });
     }
-    req.user = user;
-    next();
+
+    try {
+      const dbUser = await User.findByPk(decoded.userId);
+
+      if (!dbUser || !dbUser.isActive) {
+        return res.status(401).json({ message: 'User no longer has access' });
+      }
+
+      req.authUser = dbUser;
+      req.user = {
+        userId: dbUser.id,
+        email: dbUser.email,
+        role: dbUser.role,
+      };
+      next();
+    } catch (error) {
+      console.error('Auth lookup error:', error);
+      return res.status(500).json({ message: 'Authentication failed' });
+    }
   });
+};
+
+const requireAdmin = (req, res, next) => {
+  if (!req.user || req.user.role !== 'admin') {
+    return res.status(403).json({ message: 'Admin access required' });
+  }
+  next();
 };
 
 // Get current user
@@ -191,3 +231,4 @@ router.post('/logout', (req, res) => {
 
 module.exports = router;
 module.exports.authenticateToken = authenticateToken;
+module.exports.requireAdmin = requireAdmin;

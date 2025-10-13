@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import styled from 'styled-components';
 
 import Navbar from './components/Navbar';
+import AdminLayout from './components/AdminLayout';
 import Home from './pages/Home';
 import Products from './pages/Products';
 import ProductDetail from './pages/ProductDetail';
@@ -15,6 +16,8 @@ import Profile from './pages/Profile';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import { useAuth } from './contexts/AuthContext';
+import AdminDashboard from './pages/admin/AdminDashboard';
+import AdminProducts from './pages/admin/AdminProducts';
 
 const AppContainer = styled.div`
   min-height: 100vh;
@@ -53,6 +56,10 @@ function App() {
         transition={pageTransition}
       >
         <Routes>
+          <Route path="/admin/*" element={<AdminLayout />}>
+            <Route index element={<AdminDashboard />} />
+            <Route path="products" element={<AdminProducts />} />
+          </Route>
           <Route path="/" element={<Home />} />
           <Route path="/products" element={<Products />} />
           <Route path="/products/:sku" element={<ProductDetail />} />
