@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import { FiArrowLeft, FiShoppingCart, FiStar, FiTruck, FiShield, FiEdit3, FiTrash2 } from 'react-icons/fi';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import { useCart } from '../contexts/CartContext';
+import { useCart, resolveCartProductId } from '../contexts/CartContext';
 import { useAuth } from '../contexts/AuthContext';
 
 const ProductContainer = styled.div`
@@ -309,25 +309,36 @@ const ProductDetail = () => {
     fetchProduct();
   }, [fetchProduct]);
 
-  const handleAddToCart = () => {
+  const handleAddToCart = async () => {
     if (!isAuthenticated) {
       toast.error('Please sign in to add items to cart');
       return;
     }
 
     if (product) {
-      addToCart(product);
+      await addToCart(product);
     }
   };
 
-  const handleBuyNow = () => {
+  const handleBuyNow = async () => {
     if (!isAuthenticated) {
       toast.error('Please sign in to purchase');
       return;
     }
 
-    handleAddToCart();
-    navigate('/checkout');
+    if (!product) {
+      return;
+    }
+
+    const productId = resolveCartProductId(product);
+    const success = await addToCart(product);
+    if (success) {
+      if (productId) {
+        navigate('/checkout', { state: { selectedProductIds: [productId] } });
+      } else {
+        navigate('/checkout');
+      }
+    }
   };
 
   const handleAdminEdit = () => {

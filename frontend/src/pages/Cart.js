@@ -255,7 +255,8 @@ const ShopButton = styled(Link)`
 `;
 
 const Cart = () => {
-  const { cart, updateCartItem, removeFromCart, getCartTotal, loading } = useCart();
+  const { cart, updateCartItem, removeFromCart, getCartTotal, getCartItemCount, loading } = useCart();
+  const itemCount = getCartItemCount();
   const handleQuantityChange = (productId, newQuantity) => {
     if (newQuantity < 1) {
       removeFromCart(productId);
@@ -318,7 +319,7 @@ const Cart = () => {
       <Header>
         <Title>Shopping Cart</Title>
         <ItemCount>
-          {cart.length} {cart.length === 1 ? 'item' : 'items'} in your cart
+          {itemCount} {itemCount === 1 ? 'item' : 'items'} in your cart
         </ItemCount>
       </Header>
 

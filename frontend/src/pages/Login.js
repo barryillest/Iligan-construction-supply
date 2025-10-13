@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import styled from 'styled-components';
 import { motion } from 'framer-motion';
@@ -221,6 +221,19 @@ const GoogleSignInButton = styled.button`
   }
 `;
 
+const GoogleButtonWrapper = styled.div`
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  margin-bottom: 16px;
+
+  > div {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+  }
+`;
+
 const GoogleIcon = styled.svg`
   width: 20px;
   height: 20px;
@@ -243,6 +256,7 @@ const LoadingSpinner = styled.div`
 const Login = () => {
   const { login, loginWithGoogle, loading, user } = useAuth();
   const navigate = useNavigate();
+  const googleButtonRef = useRef(null);
 
   const [formData, setFormData] = useState({
     email: '',
@@ -283,7 +297,23 @@ const Login = () => {
         window.google.accounts.id.initialize({
           client_id: googleClientId,
           callback: handleGoogleResponse,
+          ux_mode: 'popup',
+          auto_select: false,
+          allowed_parent_origin: [window.location.origin],
+          context: 'signin'
         });
+
+        if (googleButtonRef.current) {
+          googleButtonRef.current.innerHTML = '';
+          window.google.accounts.id.renderButton(googleButtonRef.current, {
+            type: 'standard',
+            theme: 'filled_blue',
+            size: 'large',
+            text: 'continue_with',
+            shape: 'pill',
+            width: 280
+          });
+        }
       }
     };
 
@@ -344,13 +374,6 @@ const Login = () => {
     if (result.success) {
       const destination = result.user?.role === 'admin' ? '/admin' : '/';
       navigate(destination, { replace: true });
-    }
-  };
-
-  const handleGoogleSignIn = () => {
-    if (!googleEnabled) return;
-    if (window.google) {
-      window.google.accounts.id.prompt();
     }
   };
 
@@ -427,14 +450,12 @@ const Login = () => {
           </Divider>
         </>
 
-        <GoogleSignInButton
-          onClick={handleGoogleSignIn}
-          disabled={loading || !googleEnabled}
-          title={googleEnabled ? undefined : 'Google Sign-In not configured'}
-        >
-          {loading ? (
-            <LoadingSpinner />
-          ) : (
+        {googleEnabled ? (
+          <GoogleButtonWrapper>
+            <div ref={googleButtonRef} />
+          </GoogleButtonWrapper>
+        ) : (
+          <GoogleSignInButton disabled>
             <GoogleIcon viewBox="0 0 24 24">
               <path
                 fill="#4285F4"
@@ -453,9 +474,9 @@ const Login = () => {
                 d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
               />
             </GoogleIcon>
-          )}
-          {loading ? 'Signing in...' : (googleEnabled ? 'Continue with Google' : 'Google Sign-In unavailable')}
-        </GoogleSignInButton>
+            Google Sign-In unavailable
+          </GoogleSignInButton>
+        )}
 
         <RegisterLink>
           Don't have an account? <Link to="/register">Create account</Link>

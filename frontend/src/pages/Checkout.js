@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import styled from 'styled-components';
-import { PayPalButtons } from '@paypal/react-paypal-js';
-import { FiCreditCard, FiShield, FiCheck } from 'react-icons/fi';
+import { FiCreditCard, FiShield, FiCheck, FiShoppingCart } from 'react-icons/fi';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { useCart } from '../contexts/CartContext';
+
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+const CHECKOUT_SELECTION_STORAGE_KEY = 'ics_checkout_selection';
 
 const CheckoutContainer = styled.div`
   padding: 40px 20px;
@@ -28,6 +30,32 @@ const Title = styled.h1`
 const Subtitle = styled.p`
   color: var(--text-secondary);
   font-size: 16px;
+`;
+
+const HeaderActions = styled.div`
+  margin: 0 auto 24px;
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+`;
+
+const AddMoreProductsButton = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: 10px;
+  border: 1px solid var(--accent-color);
+  background: transparent;
+  color: var(--accent-color);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: rgba(0, 149, 246, 0.08);
+  }
 `;
 
 const CheckoutContent = styled.div`
@@ -99,6 +127,32 @@ const PayPalContainer = styled.div`
   margin-top: 20px;
 `;
 
+const PayPalActionButton = styled.button`
+  width: 100%;
+  padding: 14px 18px;
+  border-radius: 12px;
+  border: none;
+  background: var(--accent-color);
+  color: white;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  transition: all 0.2s ease;
+
+  &:hover:not(:disabled) {
+    background: var(--accent-hover);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+`;
+
 const OrderSummary = styled.div`
   background: var(--secondary-bg);
   border: 1px solid var(--border-color);
@@ -112,8 +166,43 @@ const OrderSummary = styled.div`
 const SummaryTitle = styled.h3`
   font-size: 20px;
   font-weight: 700;
-  margin-bottom: 20px;
+  margin: 0;
   color: var(--text-primary);
+`;
+
+const SummaryHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+`;
+
+const SummaryControls = styled.div`
+  display: flex;
+  gap: 8px;
+`;
+
+const SummaryControlButton = styled.button`
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: var(--tertiary-bg);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover:not(:disabled) {
+    border-color: var(--accent-color);
+    color: var(--accent-color);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
 `;
 
 const OrderItem = styled.div`
@@ -122,11 +211,24 @@ const OrderItem = styled.div`
   margin-bottom: 16px;
   padding-bottom: 16px;
   border-bottom: 1px solid var(--border-color);
+  align-items: center;
 
   &:last-of-type {
     border-bottom: none;
     margin-bottom: 20px;
   }
+`;
+
+const ItemSelection = styled.div`
+  display: flex;
+  align-items: center;
+`;
+
+const ItemSelect = styled.input`
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: var(--accent-color);
 `;
 
 const ItemImage = styled.img`
@@ -210,16 +312,89 @@ const LoadingSpinner = styled.div`
   }
 `;
 
+const EmptySelectionMessage = styled.div`
+  font-size: 14px;
+  color: var(--text-muted);
+  text-align: center;
+  margin: 12px 0 16px;
+`;
+
 const Checkout = () => {
   const [selectedPayment, setSelectedPayment] = useState('paypal');
   const [processing, setProcessing] = useState(false);
-  const { cart, getCartTotal, clearCart } = useCart();
+  const { cart, loading, initialized } = useCart();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [selectedProductIds, setSelectedProductIds] = useState([]);
+  const selectionInitializedRef = useRef(false);
 
-  const subtotal = getCartTotal();
-  const shipping = subtotal > 5000 ? 0 : 250; // Free shipping over ₱5,000, otherwise ₱250
+  useEffect(() => {
+    if (!initialized || loading) {
+      return;
+    }
+
+    if (cart.length === 0) {
+      navigate('/cart', { replace: true });
+    }
+  }, [initialized, loading, cart.length, navigate]);
+
+  useEffect(() => {
+    if (!initialized) {
+      return;
+    }
+
+    if (!cart.length) {
+      setSelectedProductIds([]);
+      selectionInitializedRef.current = false;
+      return;
+    }
+
+    const fromState = location.state?.selectedProductIds;
+    if (fromState?.length) {
+      const matches = cart
+        .filter((item) => fromState.includes(item.productId))
+        .map((item) => item.productId);
+
+      if (matches.length) {
+        setSelectedProductIds(matches);
+        selectionInitializedRef.current = true;
+        navigate(location.pathname, { replace: true, state: {} });
+        return;
+      }
+    }
+
+    if (!selectionInitializedRef.current) {
+      setSelectedProductIds(cart.map((item) => item.productId));
+      selectionInitializedRef.current = true;
+      return;
+    }
+
+    setSelectedProductIds((prev) =>
+      prev.filter((id) => cart.some((item) => item.productId === id))
+    );
+  }, [cart, initialized, location.state, location.pathname, navigate]);
+
+  const selectedItems = useMemo(
+    () => cart.filter((item) => selectedProductIds.includes(item.productId)),
+    [cart, selectedProductIds]
+  );
+
+  const subtotal = useMemo(
+    () =>
+      selectedItems.reduce(
+        (total, item) => total + (item.price * Number(item.quantity || 0)),
+        0
+      ),
+    [selectedItems]
+  );
+
+  const shipping = selectedItems.length === 0 ? 0 : (subtotal > 5000 ? 0 : 250); // Free shipping over ₱5,000, otherwise ₱250
   const tax = subtotal * 0.12; // 12% VAT in Philippines
   const total = subtotal + shipping + tax;
+
+  const allProductIds = useMemo(() => cart.map((item) => item.productId), [cart]);
+  const allSelected = allProductIds.length > 0 && selectedProductIds.length === allProductIds.length;
+  const hasSelection = selectedItems.length > 0;
 
   const formatPrice = (price) => {
     return new Intl.NumberFormat('en-PH', {
@@ -228,77 +403,86 @@ const Checkout = () => {
     }).format(price);
   };
 
-  const createPayPalOrder = async () => {
-    try {
-      setProcessing(true);
-      const orderItems = cart.map(item => ({
-        name: item.name,
-        sku: item.productId,
-        price: item.price,
-        quantity: item.quantity
-      }));
-
-      const response = await axios.post(
-        `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/payments/create-payment`,
-        {
-          items: orderItems,
-          total: total,
-          returnUrl: `${window.location.origin}/payment/success`,
-          cancelUrl: `${window.location.origin}/payment/cancel`
-        }
-      );
-
-      return response.data.paymentId;
-    } catch (error) {
-      console.error('Error creating PayPal order:', error);
-      toast.error('Failed to create payment order');
-      throw error;
-    } finally {
-      setProcessing(false);
-    }
+  const handleSelectAll = () => {
+    setSelectedProductIds([...allProductIds]);
   };
 
-  const onPayPalApprove = async (data) => {
+  const handleClearSelection = () => {
+    setSelectedProductIds([]);
+  };
+
+  const handleToggleItem = (productId) => {
+    setSelectedProductIds((prev) =>
+      prev.includes(productId)
+        ? prev.filter((id) => id !== productId)
+        : [...prev, productId]
+    );
+  };
+
+  const handleAddMoreProducts = () => {
+    navigate('/products');
+  };
+
+  const handlePayPalCheckout = async () => {
+    if (!hasSelection) {
+      toast.error('Select at least one item to checkout');
+      return;
+    }
+
     try {
       setProcessing(true);
-      const orderItems = cart.map(item => ({
+      const orderItems = selectedItems.map((item) => ({
         name: item.name,
         sku: item.productId,
+        productId: item.productId,
         price: item.price,
-        quantity: item.quantity
+        quantity: Math.max(1, Math.round(Number(item.quantity || 0)))
       }));
 
-      const response = await axios.post(
-        `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/payments/execute-payment`,
-        {
-          paymentId: data.orderID,
-          payerId: data.payerID,
-          items: orderItems,
-          total: total
-        }
-      );
+      const response = await axios.post(`${API_URL}/api/payments/create-payment`, {
+        items: orderItems,
+        subtotal,
+        shipping,
+        tax,
+        total,
+        returnUrl: `${window.location.origin}/payment/success`,
+        cancelUrl: `${window.location.origin}/payment/cancel`
+      });
 
-      if (response.data.paymentId) {
-        toast.success('Payment successful! Order confirmed.');
-        clearCart();
-        navigate('/orders');
+      const { paymentId, approvalUrl } = response.data || {};
+      if (!approvalUrl) {
+        throw new Error('Missing PayPal approval URL');
       }
+
+      try {
+        window.localStorage.setItem(
+          CHECKOUT_SELECTION_STORAGE_KEY,
+          JSON.stringify({
+            paymentId,
+            items: orderItems,
+            subtotal,
+            shipping,
+            tax,
+            total,
+            selectedProductIds
+          })
+        );
+      } catch (storageError) {
+        console.error('Failed to persist checkout selection:', storageError);
+        toast.error('Unable to start PayPal checkout. Please try again.');
+        setProcessing(false);
+        return;
+      }
+
+      window.location.href = approvalUrl;
     } catch (error) {
-      console.error('Error executing PayPal payment:', error);
-      toast.error('Payment failed. Please try again.');
-    } finally {
+      console.error('Error redirecting to PayPal:', error);
+      toast.error(error.response?.data?.message || 'Failed to redirect to PayPal');
       setProcessing(false);
     }
-  };
-
-  const onPayPalError = (error) => {
-    console.error('PayPal error:', error);
-    toast.error('Payment failed. Please try again.');
-    setProcessing(false);
   };
 
   if (cart.length === 0) {
-    navigate('/cart');
     return null;
   }
 
@@ -308,6 +492,13 @@ const Checkout = () => {
         <Title>Checkout</Title>
         <Subtitle>Review your order and complete your purchase</Subtitle>
       </Header>
+
+      <HeaderActions>
+        <AddMoreProductsButton onClick={handleAddMoreProducts}>
+          <FiShoppingCart size={16} />
+          Add More Products
+        </AddMoreProductsButton>
+      </HeaderActions>
 
       <CheckoutContent>
         <PaymentSection style={{ position: 'relative' }}>
@@ -323,11 +514,11 @@ const Checkout = () => {
           </SectionTitle>
 
           <PaymentOptions>
-            <PaymentOption
-              className={selectedPayment === 'paypal' ? 'selected' : ''}
-              onClick={() => setSelectedPayment('paypal')}
-            >
-              <PaymentMethodTitle>
+  <PaymentOption
+    className={selectedPayment === 'paypal' ? 'selected' : ''}
+    onClick={() => setSelectedPayment('paypal')}
+  >
+    <PaymentMethodTitle>
                 <div style={{
                   width: '20px',
                   height: '20px',
@@ -339,29 +530,23 @@ const Checkout = () => {
                   background: selectedPayment === 'paypal' ? 'var(--accent-color)' : 'transparent'
                 }}>
                   {selectedPayment === 'paypal' && <FiCheck size={12} color="white" />}
-                </div>
-                PayPal
-              </PaymentMethodTitle>
-              <PaymentMethodDescription>
-                Secure payment with PayPal. Pay with your PayPal account or credit card.
-              </PaymentMethodDescription>
+    </div>
+    PayPal
+  </PaymentMethodTitle>
+  <PaymentMethodDescription>
+    You will be redirected to PayPal Sandbox to sign in and approve this order securely.
+  </PaymentMethodDescription>
             </PaymentOption>
           </PaymentOptions>
 
           {selectedPayment === 'paypal' && (
             <PayPalContainer>
-              <PayPalButtons
-                style={{
-                  layout: 'vertical',
-                  color: 'blue',
-                  shape: 'rect',
-                  label: 'pay'
-                }}
-                createOrder={createPayPalOrder}
-                onApprove={onPayPalApprove}
-                onError={onPayPalError}
-                disabled={processing}
-              />
+              <PayPalActionButton
+                onClick={handlePayPalCheckout}
+                disabled={processing || !hasSelection}
+              >
+                Complete Order in PayPal Sandbox
+              </PayPalActionButton>
             </PayPalContainer>
           )}
 
@@ -372,10 +557,33 @@ const Checkout = () => {
         </PaymentSection>
 
         <OrderSummary>
-          <SummaryTitle>Order Summary</SummaryTitle>
+          <SummaryHeader>
+            <SummaryTitle>Order Summary</SummaryTitle>
+            <SummaryControls>
+              <SummaryControlButton
+                onClick={handleSelectAll}
+                disabled={allSelected || cart.length === 0}
+              >
+                Select all
+              </SummaryControlButton>
+              <SummaryControlButton
+                onClick={handleClearSelection}
+                disabled={!hasSelection}
+              >
+                Clear
+              </SummaryControlButton>
+            </SummaryControls>
+          </SummaryHeader>
 
           {cart.map((item) => (
             <OrderItem key={item.productId}>
+              <ItemSelection>
+                <ItemSelect
+                  type="checkbox"
+                  checked={selectedProductIds.includes(item.productId)}
+                  onChange={() => handleToggleItem(item.productId)}
+                />
+              </ItemSelection>
               <ItemImage
                 src={item.image || '/placeholder-image.jpg'}
                 alt={item.name}
@@ -386,11 +594,17 @@ const Checkout = () => {
               <ItemInfo>
                 <ItemName>{item.name}</ItemName>
                 <ItemDetails>
-                  Quantity: {item.quantity} × {formatPrice(item.price)}
+                  Quantity: {item.quantity} x {formatPrice(item.price)}
                 </ItemDetails>
               </ItemInfo>
             </OrderItem>
           ))}
+
+          {!hasSelection && (
+            <EmptySelectionMessage>
+              Select the items you want to include in this checkout.
+            </EmptySelectionMessage>
+          )}
 
           <SummaryRow>
             <span>Subtotal</span>

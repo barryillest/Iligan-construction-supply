@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import styled from 'styled-components';
 import { motion } from 'framer-motion';
-import { FiShoppingCart, FiUser, FiMenu, FiX, FiPackage, FiLogOut, FiTool } from 'react-icons/fi';
+import { FiShoppingCart, FiUser, FiMenu, FiX, FiPackage, FiLogOut, FiTool, FiInfo } from 'react-icons/fi';
 import { useAuth } from '../contexts/AuthContext';
 import { useCart } from '../contexts/CartContext';
 
@@ -333,9 +333,6 @@ const Navbar = () => {
                 Admin Panel
               </NavLink>
             )}
-            <NavLink to="/about" className={isActiveLink('/about')}>
-              About Us
-            </NavLink>
           </NavLinks>
           {user && user.role !== 'admin' && (
             <CartButton to="/cart">
@@ -387,6 +384,13 @@ const Navbar = () => {
                   >
                     <FiPackage size={16} />
                     Orders
+                  </DropdownItem>
+                  <DropdownItem
+                    to="/about"
+                    onClick={() => setShowUserMenu(false)}
+                  >
+                    <FiInfo size={16} />
+                    About Us
                   </DropdownItem>
                   <DropdownButton onClick={handleLogout}>
                     <FiLogOut size={16} />

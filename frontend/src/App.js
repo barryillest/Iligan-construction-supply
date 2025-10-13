@@ -18,6 +18,7 @@ import Register from './pages/Register';
 import { useAuth } from './contexts/AuthContext';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminProducts from './pages/admin/AdminProducts';
+import PaymentStatus from './pages/PaymentStatus';
 
 const AppContainer = styled.div`
   min-height: 100vh;
@@ -66,6 +67,8 @@ function App() {
           <Route path="/about" element={<About />} />
           <Route path="/cart" element={user ? <Cart /> : <Login />} />
           <Route path="/checkout" element={user ? <Checkout /> : <Login />} />
+          <Route path="/payment/success" element={<PaymentStatus />} />
+          <Route path="/payment/cancel" element={<PaymentStatus />} />
           <Route path="/orders" element={user ? <Orders /> : <Login />} />
           <Route path="/profile" element={user ? <Profile /> : <Login />} />
           <Route path="/login" element={<Login />} />

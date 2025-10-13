@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { motion } from 'framer-motion';
-import { FiSearch, FiGrid, FiList, FiShoppingCart, FiEdit3, FiTrash2 } from 'react-icons/fi';
+import { FiSearch, FiGrid, FiList, FiShoppingCart, FiEdit3, FiTrash2, FiArrowRight } from 'react-icons/fi';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import { useCart } from '../contexts/CartContext';
+import { useCart, resolveCartProductId } from '../contexts/CartContext';
 import { useAuth } from '../contexts/AuthContext';
 
 const ProductsContainer = styled.div`
@@ -181,7 +181,7 @@ const ProductDescription = styled.p`
 `;
 
 const AddToCartButton = styled.button`
-  width: 100%;
+  flex: 1;
   padding: 12px;
   background: var(--accent-color);
   color: white;
@@ -203,6 +203,20 @@ const AddToCartButton = styled.button`
   &:disabled {
     opacity: 0.6;
     cursor: not-allowed;
+  }
+`;
+
+const ProductActions = styled.div`
+  display: flex;
+  gap: 8px;
+  width: 100%;
+`;
+
+const BuyNowButton = styled(AddToCartButton)`
+  background: var(--success-color, #28a745);
+
+  &:hover {
+    background: var(--success-hover, #218838);
   }
 `;
 
@@ -376,7 +390,7 @@ const Products = () => {
     }
   };
 
-  const handleAddToCart = (e, product) => {
+  const handleAddToCart = async (e, product) => {
     e.preventDefault();
     e.stopPropagation();
 
@@ -385,7 +399,27 @@ const Products = () => {
       return;
     }
 
-    addToCart(product);
+    await addToCart(product);
+  };
+
+  const handleBuyNow = async (e, product) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!isAuthenticated) {
+      toast.error('Please sign in to purchase');
+      return;
+    }
+
+    const productId = resolveCartProductId(product);
+    const success = await addToCart(product);
+    if (success) {
+      if (productId) {
+        navigate('/checkout', { state: { selectedProductIds: [productId] } });
+      } else {
+        navigate('/checkout');
+      }
+    }
   };
 
   const handleAdminEdit = (e, product) => {
@@ -518,13 +552,22 @@ const Products = () => {
                   </AdminActionButton>
                 </AdminActions>
               ) : (
-                <AddToCartButton
-                  onClick={(e) => handleAddToCart(e, product)}
-                  disabled={!isAuthenticated}
-                >
-                  <FiShoppingCart size={16} />
-                  Add to Cart
-                </AddToCartButton>
+                <ProductActions>
+                  <AddToCartButton
+                    onClick={(e) => handleAddToCart(e, product)}
+                    disabled={!isAuthenticated}
+                  >
+                    <FiShoppingCart size={16} />
+                    Add to Cart
+                  </AddToCartButton>
+                  <BuyNowButton
+                    onClick={(e) => handleBuyNow(e, product)}
+                    disabled={!isAuthenticated}
+                  >
+                    <FiArrowRight size={16} />
+                    Buy Now
+                  </BuyNowButton>
+                </ProductActions>
               )}
             </ProductInfo>
           </ProductCard>
