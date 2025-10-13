@@ -443,32 +443,6 @@ const Home = () => {
         </HeroContent>
       </HeroSection>
 
-      <FeaturesSection>
-        <FeaturesContainer>
-          <SectionTitle>Why Choose Iligan Construction?</SectionTitle>
-          <SectionSubtitle>
-            We provide comprehensive construction solutions with quality products,
-            competitive prices, and exceptional service.
-          </SectionSubtitle>
-
-          <FeaturesGrid>
-            {features.map((feature, index) => (
-              <FeatureCard
-                key={index}
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: index * 0.1 }}
-                whileHover={{ scale: 1.02 }}
-              >
-                <FeatureIcon>{feature.icon}</FeatureIcon>
-                <FeatureTitle>{feature.title}</FeatureTitle>
-                <FeatureDescription>{feature.description}</FeatureDescription>
-              </FeatureCard>
-            ))}
-          </FeaturesGrid>
-        </FeaturesContainer>
-      </FeaturesSection>
-
       <ProductsSection>
         <ProductsWrapper>
           <SectionTitle>All Products</SectionTitle>
@@ -518,6 +492,32 @@ const Home = () => {
           )}
         </ProductsWrapper>
       </ProductsSection>
+
+      <FeaturesSection>
+        <FeaturesContainer>
+          <SectionTitle>Why Choose Iligan Construction?</SectionTitle>
+          <SectionSubtitle>
+            We provide comprehensive construction solutions with quality products,
+            competitive prices, and exceptional service.
+          </SectionSubtitle>
+
+          <FeaturesGrid>
+            {features.map((feature, index) => (
+              <FeatureCard
+                key={index}
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: index * 0.1 }}
+                whileHover={{ scale: 1.02 }}
+              >
+                <FeatureIcon>{feature.icon}</FeatureIcon>
+                <FeatureTitle>{feature.title}</FeatureTitle>
+                <FeatureDescription>{feature.description}</FeatureDescription>
+              </FeatureCard>
+            ))}
+          </FeaturesGrid>
+        </FeaturesContainer>
+      </FeaturesSection>
 
       <StatsSection>
         <StatsContainer>
