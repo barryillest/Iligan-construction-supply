@@ -72,7 +72,7 @@ const InputWrapper = styled.div`
 const Input = styled.input`
   width: 100%;
   padding: 16px;
-  padding-right: ${props => props.hasIcon ? '50px' : '16px'};
+  padding-right: ${props => props.$hasIcon ? '50px' : '16px'};
   border: 1px solid var(--border-color);
   border-radius: 12px;
   background: var(--primary-bg);
@@ -433,8 +433,8 @@ const Login = () => {
                   placeholder="Enter your password"
                   value={formData.password}
                   onChange={handleInputChange}
-                  disabled={loading}
-                  hasIcon={true}
+                disabled={loading}
+                $hasIcon={true}
                 />
                 <PasswordToggle
                   type="button"

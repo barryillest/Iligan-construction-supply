@@ -101,13 +101,13 @@ const ViewToggle = styled.div`
 const ViewButton = styled.button`
   padding: 8px 12px;
   border: none;
-  background: ${props => props.active ? 'var(--accent-color)' : 'transparent'};
-  color: ${props => props.active ? 'white' : 'var(--text-secondary)'};
+  background: ${props => (props.$active ? 'var(--accent-color)' : 'transparent')};
+  color: ${props => (props.$active ? 'white' : 'var(--text-secondary)')};
   cursor: pointer;
   transition: all 0.2s ease;
 
   &:hover {
-    background: ${props => props.active ? 'var(--accent-color)' : 'var(--secondary-bg)'};
+    background: ${props => (props.$active ? 'var(--accent-color)' : 'var(--secondary-bg)')};
   }
 `;
 
@@ -527,13 +527,13 @@ const Products = () => {
 
         <ViewToggle>
           <ViewButton
-            active={view === 'grid'}
+            $active={view === 'grid'}
             onClick={() => setView('grid')}
           >
             <FiGrid size={16} />
           </ViewButton>
           <ViewButton
-            active={view === 'list'}
+            $active={view === 'list'}
             onClick={() => setView('list')}
           >
             <FiList size={16} />

@@ -290,10 +290,12 @@ const Orders = () => {
   };
 
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
+    return new Date(dateString).toLocaleString('en-US', {
       year: 'numeric',
       month: 'short',
-      day: 'numeric'
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit'
     });
   };
 
@@ -349,7 +351,7 @@ const Orders = () => {
       <OrdersList>
         {orders.map((order, index) => (
           <OrderCard
-            key={order.orderId}
+            key={`${order.orderId || 'order'}-${index}`}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3, delay: index * 0.1 }}

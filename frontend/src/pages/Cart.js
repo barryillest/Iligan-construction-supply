@@ -408,7 +408,7 @@ const Cart = () => {
               marginTop: '12px',
               textAlign: 'center'
             }}>
-              Free shipping on orders over $100
+              Free shipping on orders over ₱100
             </div>
           )}
           <CheckoutButton to="/checkout">
