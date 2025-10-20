@@ -83,6 +83,13 @@ const adjustProductStock = async (productRecord, delta) => {
   return productRecord;
 };
 
+const persistCart = async (user, nextCart) => {
+  const normalizedCart = ensureArray(nextCart);
+  await User.update({ cart: normalizedCart }, { where: { id: user.id } });
+  const freshUser = await User.findByPk(user.id);
+  return ensureArray(freshUser?.cart);
+};
+
 const enrichCartItems = async (cartItems) => {
   const items = ensureArray(cartItems);
 
@@ -169,10 +176,8 @@ router.post('/cart/add', authenticateToken, async (req, res) => {
       });
     }
 
-    user.set('cart', currentCart);
-    await user.save();
-
-    const enrichedCart = await enrichCartItems(currentCart);
+    const persistedCart = await persistCart(user, currentCart);
+    const enrichedCart = await enrichCartItems(persistedCart);
     res.json({ message: 'Item added to cart', cart: enrichedCart });
   } catch (error) {
     console.error('Add to cart error:', error);
@@ -222,10 +227,8 @@ router.put('/cart/update', authenticateToken, async (req, res) => {
 
     existingItem.quantity = safeQuantity;
 
-    user.set('cart', currentCart);
-    await user.save();
-
-    const enrichedCart = await enrichCartItems(currentCart);
+    const persistedCart = await persistCart(user, currentCart);
+    const enrichedCart = await enrichCartItems(persistedCart);
     res.json({ message: 'Cart updated', cart: enrichedCart });
   } catch (error) {
     console.error('Error updating cart:', error);
@@ -260,10 +263,8 @@ router.delete('/cart/remove/:productId', authenticateToken, async (req, res) => 
     }
 
     const updatedCart = currentCart.filter(cartItem => cartItem.productId !== resolvedProductId);
-    user.set('cart', updatedCart);
-    await user.save();
-
-    const enrichedCart = await enrichCartItems(updatedCart);
+    const persistedCart = await persistCart(user, updatedCart);
+    const enrichedCart = await enrichCartItems(persistedCart);
     res.json({ message: 'Item removed from cart', cart: enrichedCart });
   } catch (error) {
     console.error('Error removing cart item:', error);
@@ -290,9 +291,7 @@ router.delete('/cart/clear', authenticateToken, async (req, res) => {
       }
     }));
 
-    user.set('cart', []);
-    await user.save();
-
+    await persistCart(user, []);
     res.json({ message: 'Cart cleared', cart: [] });
   } catch (error) {
     console.error('Error clearing cart:', error);
@@ -370,10 +369,8 @@ router.post('/cart/sync', authenticateToken, async (req, res) => {
       }
     }
 
-    user.set('cart', mergedIncomingItems);
-    await user.save();
-
-    const enrichedCart = await enrichCartItems(mergedIncomingItems);
+    const persistedCart = await persistCart(user, mergedIncomingItems);
+    const enrichedCart = await enrichCartItems(persistedCart);
     res.json({ message: 'Cart synced', cart: enrichedCart });
   } catch (error) {
     console.error('Error syncing cart:', error);
@@ -389,10 +386,81 @@ router.get('/orders', authenticateToken, async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    const orders = ensureArray(user.orders)
-      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    const parseDate = (value) => {
+      if (!value) {
+        return null;
+      }
+      const parsed = new Date(value);
+      return Number.isNaN(parsed.getTime()) ? null : parsed;
+    };
+
+    const isAdminRequestingAll = req.query.scope === 'all';
+
+    if (isAdminRequestingAll) {
+      if (user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      const allUsers = await User.findAll({
+        attributes: ['id', 'name', 'email', 'orders'],
+        order: [['id', 'ASC']]
+      });
+
+      const aggregatedOrders = allUsers.flatMap((customer) => {
+        const customerOrders = ensureArray(customer.get('orders'));
+
+        return customerOrders.map((order, index) => {
+          const orderDate =
+            parseDate(order?.createdAt) ||
+            parseDate(order?.updatedAt) ||
+            parseDate(customer?.updatedAt) ||
+            parseDate(customer?.createdAt) ||
+            new Date();
+
+          return {
+            ...order,
+            orderId: order?.orderId || order?.paymentId || `order-${customer.id}-${index}`,
+            createdAt: orderDate.toISOString(),
+            customer: {
+              id: customer.id,
+              name: customer.name,
+              email: customer.email
+            }
+          };
+        });
+      });
+
+      aggregatedOrders.sort((a, b) => {
+        const dateA = parseDate(a.createdAt) || new Date(0);
+        const dateB = parseDate(b.createdAt) || new Date(0);
+        return dateB - dateA;
+      });
+
+      return res.json({ orders: aggregatedOrders });
+    }
+
+    const orders = ensureArray(user.orders).map((order, index) => {
+      const orderDate =
+        parseDate(order?.createdAt) ||
+        parseDate(order?.updatedAt) ||
+        new Date();
+
+      return {
+        ...order,
+        orderId: order?.orderId || order?.paymentId || `order-${user.id}-${index}`,
+        createdAt: orderDate.toISOString()
+      };
+    });
+
+    orders.sort((a, b) => {
+      const dateA = parseDate(a.createdAt) || new Date(0);
+      const dateB = parseDate(b.createdAt) || new Date(0);
+      return dateB - dateA;
+    });
+
     res.json({ orders });
   } catch (error) {
+    console.error('Error fetching orders:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });

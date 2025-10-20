@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import styled from 'styled-components';
+import styled, { keyframes } from 'styled-components';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import {
@@ -10,10 +10,17 @@ import {
   FiImage,
   FiTag,
   FiCheckCircle,
-  FiAlertTriangle
+  FiAlertTriangle,
+  FiLink,
+  FiLoader
 } from 'react-icons/fi';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+
+const DEMO_DATASETS = [
+  { value: 'dummyjson', label: 'BestBuy Demo Catalog' },
+  { value: 'fakestore', label: 'HarborMart Outfitters' },
+];
 
 const PageContainer = styled.div`
   display: flex;
@@ -152,6 +159,208 @@ const ImagePreview = styled.img`
 const SubmitRow = styled.div`
   display: flex;
   justify-content: flex-end;
+`;
+
+const spin = keyframes`
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+`;
+
+const ImportSection = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px;
+  border-radius: 14px;
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+`;
+
+const ImportHeader = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  strong {
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-secondary);
+  }
+
+  span {
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+`;
+
+const ImportControls = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+`;
+
+const ImportInput = styled.input`
+  flex: 1 1 280px;
+  min-width: 220px;
+  border-radius: 10px;
+  border: 1px solid var(--border-color);
+  background: var(--primary-bg);
+  color: var(--text-primary);
+  font-size: 14px;
+  padding: 12px 14px;
+  transition: border 0.2s ease;
+
+  &:focus {
+    outline: none;
+    border-color: var(--accent-color);
+  }
+`;
+
+const ImportButton = styled.button`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 18px;
+  border-radius: 10px;
+  border: none;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  background: var(--accent-color);
+  color: #ffffff;
+  transition: all 0.2s ease;
+
+  &:hover {
+    opacity: 0.9;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+`;
+
+const LoaderIcon = styled(FiLoader)`
+  animation: ${spin} 1s linear infinite;
+`;
+
+const ImportHint = styled.span`
+  font-size: 12px;
+  color: var(--text-muted);
+`;
+
+const ImportModeSwitch = styled.div`
+  display: inline-flex;
+  padding: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  gap: 4px;
+  align-self: flex-start;
+`;
+
+const ImportModeButton = styled.button`
+  border: none;
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: ${({ $active }) => ($active ? 'var(--accent-color)' : 'transparent')};
+  color: ${({ $active }) => ($active ? '#0f0f0f' : 'var(--text-secondary)')};
+
+  &:hover {
+    opacity: 0.9;
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+`;
+
+const DatasetSelect = styled.select`
+  flex: 1 1 220px;
+  min-width: 200px;
+  border-radius: 10px;
+  border: 1px solid var(--border-color);
+  background: var(--primary-bg);
+  color: var(--text-primary);
+  font-size: 14px;
+  padding: 12px 14px;
+  transition: border 0.2s ease;
+
+  &:focus {
+    outline: none;
+    border-color: var(--accent-color);
+  }
+`;
+
+const ImportPreview = styled.div`
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.4);
+`;
+
+const ImportPreviewImage = styled.img`
+  width: 120px;
+  height: 120px;
+  border-radius: 12px;
+  object-fit: cover;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+`;
+
+const ImportPreviewFallback = styled.div`
+  width: 120px;
+  height: 120px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px dashed rgba(255, 255, 255, 0.16);
+  color: var(--text-muted);
+`;
+
+const ImportPreviewBody = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+
+  h4 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+  }
+
+  p {
+    margin: 0;
+    font-size: 13px;
+    color: var(--text-secondary);
+  }
+`;
+
+const ImportPreviewMeta = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-muted);
 `;
 
 const ProductList = styled.div`
@@ -305,7 +514,9 @@ const initialNewProduct = {
   imageName: '',
   category: '',
   shortDescription: '',
-  longDescription: ''
+  longDescription: '',
+  sourceUrl: '',
+  metadata: null
 };
 
 const initialEditValues = {
@@ -343,8 +554,26 @@ const AdminProducts = () => {
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [newProduct, setNewProduct] = useState(() => ({ ...initialNewProduct }));
+  const [importMode, setImportMode] = useState('url');
+  const [importUrl, setImportUrl] = useState('');
+  const [importDataset, setImportDataset] = useState(DEMO_DATASETS[0].value);
+  const [importDatasetId, setImportDatasetId] = useState('random');
+  const [importPreview, setImportPreview] = useState(null);
+  const [importing, setImporting] = useState(false);
   const [editSku, setEditSku] = useState(null);
   const [editValues, setEditValues] = useState(() => ({ ...initialEditValues }));
+
+  useEffect(() => {
+    if (importMode === 'dataset' && !importDatasetId) {
+      setImportDatasetId('random');
+    }
+  }, [importMode, importDatasetId]);
+
+  useEffect(() => {
+    if (importMode === 'dataset') {
+      setImportDatasetId('random');
+    }
+  }, [importDataset, importMode]);
 
   const fetchProducts = useCallback(async () => {
     setLoading(true);
@@ -464,6 +693,187 @@ const AdminProducts = () => {
 
   const resetNewProduct = () => {
     setNewProduct({ ...initialNewProduct });
+    setImportMode('url');
+    setImportUrl('');
+    setImportDataset(DEMO_DATASETS[0].value);
+    setImportDatasetId('random');
+    setImportPreview(null);
+  };
+
+  const handleImportModeChange = (mode) => {
+    const nextMode = mode === 'dataset' ? 'dataset' : 'url';
+    if (nextMode === importMode) {
+      return;
+    }
+    setImportMode(nextMode);
+    setImportPreview(null);
+    if (nextMode === 'dataset') {
+      setImportDatasetId('random');
+    }
+    if (nextMode === 'url') {
+      setImportUrl('');
+    }
+  };
+
+  const prettifyLabel = (value) =>
+    typeof value === 'string'
+      ? value
+          .split(/[\s_-]+/)
+          .filter(Boolean)
+          .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+          .join(' ')
+      : '';
+
+  const handleImportProduct = async (event) => {
+    if (event && typeof event.preventDefault === 'function') {
+      event.preventDefault();
+    }
+
+    const isDatasetMode = importMode === 'dataset';
+    let trimmedUrl = '';
+
+    if (isDatasetMode) {
+      // Nothing required here; dataset imports can use "random" when blank.
+    } else {
+      trimmedUrl = importUrl.trim();
+
+      if (!trimmedUrl) {
+        toast.error('Enter a product URL to import.');
+        return;
+      }
+
+      try {
+        // Basic validation to provide immediate feedback
+        // eslint-disable-next-line no-new
+        new URL(trimmedUrl);
+      } catch (_err) {
+        toast.error('Please enter a valid URL starting with http or https.');
+        return;
+      }
+    }
+
+    setImporting(true);
+    setImportPreview(null);
+
+    try {
+      let response;
+      if (isDatasetMode) {
+        const datasetReference = (importDatasetId || '').trim() || 'random';
+        response = await axios.post(`${API_URL}/api/products/import`, {
+          dataset: importDataset,
+          datasetProductId: datasetReference,
+        });
+      } else {
+        response = await axios.post(`${API_URL}/api/products/import`, {
+          sourceUrl: trimmedUrl,
+        });
+      }
+
+      const payload = response.data?.product;
+
+      if (!payload || !payload.name) {
+        throw new Error('The import service did not return product details.');
+      }
+
+      const displayPrice = (() => {
+        if (payload.salePrice !== null && payload.salePrice !== undefined) {
+          try {
+            if (payload.currency) {
+              return new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: payload.currency,
+              }).format(Number(payload.salePrice));
+            }
+            return Number(payload.salePrice).toLocaleString(undefined, {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            });
+          } catch (error) {
+            console.warn('Currency formatting failed, falling back to raw value.', error);
+            return payload.salePrice;
+          }
+        }
+        return payload.priceText || 'Price unavailable';
+      })();
+
+      setImportPreview({
+        ...payload,
+        displayPrice,
+      });
+
+      setNewProduct((prev) => {
+        const existingMeta =
+          prev.metadata && typeof prev.metadata === 'object' ? { ...prev.metadata } : {};
+        const importedMeta =
+          payload.metadata && typeof payload.metadata === 'object'
+            ? { ...payload.metadata }
+            : {};
+
+        const mergedMetadata = {
+          ...existingMeta,
+          ...importedMeta,
+        };
+
+        const sourceValue = payload.sourceUrl || trimmedUrl || mergedMetadata.sourceUrl || '';
+        if (sourceValue) {
+          mergedMetadata.sourceUrl = sourceValue;
+        }
+
+        Object.keys(mergedMetadata).forEach((key) => {
+          if (
+            mergedMetadata[key] === undefined ||
+            mergedMetadata[key] === null ||
+            mergedMetadata[key] === ''
+          ) {
+            delete mergedMetadata[key];
+          }
+        });
+
+        return {
+          ...prev,
+          sku: payload.suggestedSku || prev.sku,
+          name: payload.name || prev.name,
+          salePrice:
+            payload.salePrice !== null && payload.salePrice !== undefined
+              ? String(payload.salePrice)
+              : prev.salePrice,
+          regularPrice:
+            payload.regularPrice !== null && payload.regularPrice !== undefined
+              ? String(payload.regularPrice)
+              : prev.regularPrice,
+          stock:
+            payload.stock !== null && payload.stock !== undefined
+              ? String(payload.stock)
+              : prev.stock,
+          image: payload.image || prev.image,
+          imageName: payload.image ? '' : prev.imageName,
+          category: payload.category || prev.category,
+          shortDescription:
+            payload.shortDescription || payload.description || prev.shortDescription,
+          longDescription:
+            payload.longDescription || payload.description || prev.longDescription,
+          sourceUrl: sourceValue,
+          metadata: Object.keys(mergedMetadata).length ? mergedMetadata : null,
+        };
+      });
+
+      toast.success(
+        isDatasetMode
+          ? 'Demo catalog product imported. Review before publishing.'
+          : 'Product details imported. Review before publishing.'
+      );
+    } catch (err) {
+      console.error('Failed to import product', err);
+      setImportPreview(null);
+      toast.error(
+        err.response?.data?.message ||
+          (isDatasetMode
+            ? 'Unable to import from the selected dataset. Try another ID or dataset.'
+            : 'Unable to import product details. Check the URL or verify your scraping API configuration.')
+      );
+    } finally {
+      setImporting(false);
+    }
   };
 
   const handleAddProduct = async (e) => {
@@ -499,6 +909,33 @@ const AdminProducts = () => {
     if (Number.isNaN(payload.stock) || payload.stock < 0) {
       toast.error('Stock must be a non-negative integer.');
       return;
+    }
+
+    const metadata = (() => {
+      const base =
+        newProduct.metadata && typeof newProduct.metadata === 'object'
+          ? { ...newProduct.metadata }
+          : {};
+
+      if (newProduct.sourceUrl) {
+        base.sourceUrl = newProduct.sourceUrl.trim();
+      }
+
+      Object.keys(base).forEach((key) => {
+        if (
+          base[key] === undefined ||
+          base[key] === null ||
+          base[key] === ''
+        ) {
+          delete base[key];
+        }
+      });
+
+      return Object.keys(base).length ? base : null;
+    })();
+
+    if (metadata) {
+      payload.metadata = metadata;
     }
 
     setSubmitting(true);
@@ -598,6 +1035,147 @@ const AdminProducts = () => {
 
       <SectionCard as="form" onSubmit={handleAddProduct}>
         <SectionTitle>Create a new product</SectionTitle>
+        <ImportSection>
+          <ImportHeader>
+            <strong>Mock from external catalog</strong>
+            <span>
+              {importMode === 'dataset'
+                ? 'Select a free demo dataset and sample product to preview live data instantly.'
+                : 'Paste a public product URL to fetch the title, image, price, and description.'}
+            </span>
+          </ImportHeader>
+          <ImportModeSwitch>
+            <ImportModeButton
+              type="button"
+              $active={importMode === 'url'}
+              onClick={() => handleImportModeChange('url')}
+              disabled={importing}
+            >
+              By URL
+            </ImportModeButton>
+            <ImportModeButton
+              type="button"
+              $active={importMode === 'dataset'}
+              onClick={() => handleImportModeChange('dataset')}
+              disabled={importing}
+            >
+              Free Datasets
+            </ImportModeButton>
+          </ImportModeSwitch>
+          <ImportControls>
+            {importMode === 'dataset' ? (
+              <>
+                <DatasetSelect
+                  value={importDataset}
+                  onChange={(event) => setImportDataset(event.target.value)}
+                  disabled={importing || submitting}
+                >
+                  {DEMO_DATASETS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </DatasetSelect>
+                <ImportInput
+                  type="text"
+                  name="importDatasetId"
+                  placeholder={
+                    importDataset === 'fakestore'
+                      ? 'Product ID 1-20 or "random"'
+                      : 'Product ID 1-100 or "random"'
+                  }
+                  value={importDatasetId}
+                  onChange={(event) => setImportDatasetId(event.target.value)}
+                  disabled={importing || submitting}
+                />
+              </>
+            ) : (
+              <ImportInput
+                type="url"
+                name="importUrl"
+                placeholder="https://example.com/product-page"
+                value={importUrl}
+                onChange={(event) => setImportUrl(event.target.value)}
+                disabled={importing || submitting}
+              />
+            )}
+            <ImportButton
+              type="button"
+              onClick={handleImportProduct}
+              disabled={
+                importing || submitting || (importMode === 'url' && !importUrl.trim())
+              }
+            >
+              {importing ? (
+                <LoaderIcon size={16} />
+              ) : (
+                <FiLink size={16} />
+              )}
+              {importing ? 'Fetching...' : 'Fetch details'}
+            </ImportButton>
+            {importPreview && (
+              <ActionButton
+                type="button"
+                onClick={() => {
+                  setImportPreview(null);
+                  setImportUrl('');
+                  setImportDatasetId('random');
+                }}
+              >
+                Clear
+              </ActionButton>
+            )}
+          </ImportControls>
+          <ImportHint>
+            {importMode === 'dataset'
+              ? 'Uses open demo catalogs (BestBuy Demo Catalog & HarborMart Outfitters). No API key required—try IDs like 1-100 or the keyword "random".'
+              : 'Requires a configured scraping API key. Only import data you are permitted to test with.'}
+          </ImportHint>
+          {importPreview && (
+            <ImportPreview>
+              {importPreview.image ? (
+                <ImportPreviewImage src={importPreview.image} alt={importPreview.name} />
+              ) : (
+                <ImportPreviewFallback>
+                  <FiImage size={32} />
+                </ImportPreviewFallback>
+              )}
+              <ImportPreviewBody>
+                <h4>{importPreview.name}</h4>
+                <ImportPreviewMeta>
+                  <strong>{importPreview.displayPrice}</strong>
+                  {importPreview.currency && <span>Currency: {importPreview.currency}</span>}
+                  {importPreview.metadata?.provider && (
+                    <span>Provider: {prettifyLabel(importPreview.metadata.provider)}</span>
+                  )}
+                  {importPreview.metadata?.dataset && (
+                    <span>Dataset: {prettifyLabel(importPreview.metadata.dataset)}</span>
+                  )}
+                  {importPreview.metadata?.brand && (
+                    <span>Brand: {importPreview.metadata.brand}</span>
+                  )}
+                  {importPreview.stock !== undefined &&
+                    importPreview.stock !== null && (
+                      <span>Stock snapshot: {importPreview.stock}</span>
+                    )}
+                </ImportPreviewMeta>
+                {importPreview.shortDescription && (
+                  <p>{importPreview.shortDescription}</p>
+                )}
+                {importPreview.sourceUrl && (
+                  <a
+                    href={importPreview.sourceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ color: 'var(--accent-color)', fontSize: 12 }}
+                  >
+                    View source entry
+                  </a>
+                )}
+              </ImportPreviewBody>
+            </ImportPreview>
+          )}
+        </ImportSection>
         <FormGrid>
           <FormField>
             SKU
@@ -662,6 +1240,16 @@ const AdminProducts = () => {
               type="text"
               placeholder="e.g. tools"
               value={newProduct.category}
+              onChange={handleNewProductChange}
+            />
+          </FormField>
+          <FormField>
+            Source URL (optional)
+            <input
+              name="sourceUrl"
+              type="url"
+              placeholder="https://example.com/product"
+              value={newProduct.sourceUrl}
               onChange={handleNewProductChange}
             />
           </FormField>
@@ -759,6 +1347,30 @@ const AdminProducts = () => {
                           <span>
                             Stock: <strong>{product.stock ?? 0}</strong>
                           </span>
+                          {product.metadata?.provider && (
+                            <span>
+                              Imported via{' '}
+                              <strong>{prettifyLabel(product.metadata.provider)}</strong>
+                            </span>
+                          )}
+                          {product.metadata?.dataset && (
+                            <span>
+                              Dataset:{' '}
+                              <strong>{prettifyLabel(product.metadata.dataset)}</strong>
+                            </span>
+                          )}
+                          {product.metadata?.sourceUrl && (
+                            <span>
+                              <a
+                                href={product.metadata.sourceUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{ color: 'var(--accent-color)' }}
+                              >
+                                View source
+                              </a>
+                            </span>
+                          )}
                         </ProductMeta>
                       </ProductHeader>
 
@@ -913,6 +1525,30 @@ const AdminProducts = () => {
                           {product.stock !== null && product.stock !== undefined && (
                             <span>
                               Stock: <strong>{product.stock}</strong>
+                            </span>
+                          )}
+                          {product.metadata?.provider && (
+                            <span>
+                              Imported via{' '}
+                              <strong>{prettifyLabel(product.metadata.provider)}</strong>
+                            </span>
+                          )}
+                          {product.metadata?.dataset && (
+                            <span>
+                              Dataset:{' '}
+                              <strong>{prettifyLabel(product.metadata.dataset)}</strong>
+                            </span>
+                          )}
+                          {product.metadata?.sourceUrl && (
+                            <span>
+                              <a
+                                href={product.metadata.sourceUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{ color: 'var(--accent-color)' }}
+                              >
+                                View source
+                              </a>
                             </span>
                           )}
                         </ProductMeta>

@@ -1,9 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import styled from 'styled-components';
 import { motion } from 'framer-motion';
-import { FiPackage, FiCalendar, FiDollarSign, FiShoppingBag } from 'react-icons/fi';
+import { FiPackage, FiCalendar, FiDollarSign, FiShoppingBag, FiUser } from 'react-icons/fi';
 import axios from 'axios';
+import { useAuth } from '../contexts/AuthContext';
+
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 const OrdersContainer = styled.div`
   padding: 40px 20px;
@@ -254,24 +257,30 @@ const LoadingSpinner = styled.div`
 `;
 
 const Orders = () => {
+  const { user, loading: authLoading } = useAuth();
+  const isAdmin = user?.role === 'admin';
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchOrders();
-  }, []);
-
-  const fetchOrders = async () => {
+  const fetchOrders = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/users/orders`);
+      const scopeParam = isAdmin ? '?scope=all' : '';
+      const response = await axios.get(`${API_URL}/api/users/orders${scopeParam}`);
       setOrders(response.data.orders || []);
     } catch (error) {
       console.error('Error fetching orders:', error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [isAdmin]);
+
+  useEffect(() => {
+    if (authLoading) {
+      return;
+    }
+    fetchOrders();
+  }, [authLoading, fetchOrders]);
 
   const formatPrice = (price) => {
     return new Intl.NumberFormat('en-PH', {
@@ -302,21 +311,26 @@ const Orders = () => {
     return (
       <OrdersContainer>
         <Header>
-          <Title>My Orders</Title>
-          <Subtitle>Track and manage your construction supply orders</Subtitle>
+          <Title>Orders History</Title>
+          <Subtitle>
+            {isAdmin
+              ? 'All customer orders will appear here once purchases are completed.'
+              : 'Orders history where it stores all the orders the users purchased.'}
+          </Subtitle>
         </Header>
 
         <EmptyOrders>
           <EmptyIcon>📦</EmptyIcon>
-          <EmptyTitle>No orders yet</EmptyTitle>
+          <EmptyTitle>No orders recorded yet</EmptyTitle>
           <EmptyMessage>
-            You haven't placed any orders yet. Start shopping for construction supplies
-            and your orders will appear here.
+            Once customers complete a purchase, the order history will appear in this list.
           </EmptyMessage>
-          <ShopButton to="/products">
-            <FiShoppingBag size={20} />
-            Start Shopping
-          </ShopButton>
+          {!isAdmin && (
+            <ShopButton to="/products">
+              <FiShoppingBag size={20} />
+              Start Shopping
+            </ShopButton>
+          )}
         </EmptyOrders>
       </OrdersContainer>
     );
@@ -325,8 +339,11 @@ const Orders = () => {
   return (
     <OrdersContainer>
       <Header>
-        <Title>My Orders</Title>
-        <Subtitle>{orders.length} {orders.length === 1 ? 'order' : 'orders'} found</Subtitle>
+        <Title>Orders History</Title>
+        <Subtitle>
+          {orders.length} {orders.length === 1 ? 'order' : 'orders'} recorded
+          {isAdmin ? ' across all customers' : ''}
+        </Subtitle>
       </Header>
 
       <OrdersList>
@@ -341,14 +358,23 @@ const Orders = () => {
               <OrderInfo>
                 <OrderId>Order #{order.orderId.slice(-8).toUpperCase()}</OrderId>
                 <OrderMeta>
+                <MetaItem>
+                  <FiCalendar size={14} />
+                  {formatDate(order.createdAt)}
+                </MetaItem>
+                {isAdmin && order.customer && (
                   <MetaItem>
-                    <FiCalendar size={14} />
-                    {formatDate(order.createdAt)}
+                    <FiUser size={14} />
+                    <span>
+                      {order.customer.name}
+                      {order.customer.email ? ` • ${order.customer.email}` : ''}
+                    </span>
                   </MetaItem>
-                  <MetaItem>
-                    <FiPackage size={14} />
-                    {order.items.length} {order.items.length === 1 ? 'item' : 'items'}
-                  </MetaItem>
+                )}
+                <MetaItem>
+                  <FiPackage size={14} />
+                  {order.items.length} {order.items.length === 1 ? 'item' : 'items'}
+                </MetaItem>
                   <MetaItem>
                     <FiDollarSign size={14} />
                     {formatPrice(order.total)}

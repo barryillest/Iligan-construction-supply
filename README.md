@@ -78,6 +78,9 @@ A modern web application for construction supply management featuring a minimali
    - `GOOGLE_CLIENT_SECRET` - Google OAuth client secret
    - `GOOGLE_ALLOWED_ORIGINS` - Comma-separated list of allowed JavaScript origins for Google Sign-In (default `http://localhost:3000`)
    - `BESTBUY_API_KEY` - BestBuy API key
+   - `PRODUCT_SCRAPER_PROVIDER` - Provider for product imports (`scraperapi`, `scrapingbee`, `apify`, or `direct` in development)
+   - `SCRAPER_API_KEY` - API key or token for the selected provider
+   - `SCRAPER_API_BASE_URL` - (Optional) Override for provider base URL or Apify actor endpoint
    - `PAYPAL_CLIENT_ID` - PayPal sandbox client ID
    - `PAYPAL_CLIENT_SECRET` - PayPal sandbox client secret
 
@@ -121,6 +124,14 @@ A modern web application for construction supply management featuring a minimali
 1. Go to [BestBuy Developer Portal](https://developer.bestbuy.com/)
 2. Register for an API key
 3. Use the key for product catalog access
+
+### 4. Product Mock Import (Scraper APIs)
+1. Choose a scraping provider (ScraperAPI, ScrapingBee, Apify, etc.) and create an API key that permits product detail pages.
+2. Populate the backend `.env` with `PRODUCT_SCRAPER_PROVIDER`, `SCRAPER_API_KEY`, and (optionally) `SCRAPER_API_BASE_URL` or provider-specific flags illustrated in `.env.example`.
+3. In the admin dashboard, paste a public product URL into **Mock from external catalog** and click **Fetch details**. Review and edit the imported information before publishing.
+4. Alternatively, switch to **Free Datasets** in the admin panel to pull sample products from [DummyJSON](https://dummyjson.com/docs/products) (IDs 1–100) or [Fake Store API](https://fakestoreapi.com/) (IDs 1–20 or `random`) without any API keys.
+
+> **Ethics & rate limits:** Only scrape pages you are authorised to use for testing, throttle requests to respect provider quotas, and avoid storing copyrighted or sensitive data in production.
 
 ## Project Structure
 

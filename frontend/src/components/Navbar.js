@@ -314,7 +314,7 @@ const Navbar = () => {
     >
       <NavContent>
         <Logo to="/">
-          <LogoImage src="/logo.png" alt="Iligan Construction Supply Logo" />
+          <LogoImage src="/logo.svg" alt="Iligan Construction Supply Logo" />
           <LogoText>Iligan Construction</LogoText>
         </Logo>
 
@@ -333,8 +333,8 @@ const Navbar = () => {
                 Admin Panel
               </NavLink>
             )}
-            <NavLink to="/about" className={isActiveLink('/about')}>
-              About Us
+            <NavLink to="/orders" className={isActiveLink('/orders')}>
+              Orders
             </NavLink>
           </NavLinks>
           {user && user.role !== 'admin' && (
@@ -382,11 +382,11 @@ const Navbar = () => {
                     </DropdownItem>
                   )}
                   <DropdownItem
-                    to="/orders"
+                    to="/about"
                     onClick={() => setShowUserMenu(false)}
                   >
                     <FiPackage size={16} />
-                    Orders
+                    About Us
                   </DropdownItem>
                   <DropdownButton onClick={handleLogout}>
                     <FiLogOut size={16} />
