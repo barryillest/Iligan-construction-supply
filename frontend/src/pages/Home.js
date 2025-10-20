@@ -230,6 +230,11 @@ const ProductPrice = styled.div`
   color: var(--accent-color);
 `;
 
+const ProductStock = styled.div`
+  font-size: 14px;
+  color: ${props => props.$out ? 'var(--danger-color, #ff4d4f)' : 'var(--text-secondary)'};
+`;
+
 const ProductDescription = styled.p`
   font-size: 14px;
   color: var(--text-secondary);
@@ -464,30 +469,40 @@ const Home = () => {
 
           {!loadingProducts && !productError && products.length > 0 && (
             <ProductsGrid>
-              {products.map((product, index) => (
-                <ProductCard
-                  key={product.sku || product.id || `${product.name}-${index}`}
-                  to={product.sku ? `/products/${product.sku}` : '/products'}
-                  initial={{ opacity: 0, y: 16 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4, delay: Math.min(index * 0.02, 0.4) }}
-                >
-                  <ProductImage
-                    src={product.image || '/placeholder-image.jpg'}
-                    alt={product.name}
-                    onError={(e) => {
-                      e.target.src = '/placeholder-image.jpg';
-                    }}
-                  />
-                  <ProductInfo>
-                    <ProductName>{product.name}</ProductName>
-                    <ProductPrice>{formatPrice(product.salePrice)}</ProductPrice>
-                    {product.shortDescription && (
-                      <ProductDescription>{product.shortDescription}</ProductDescription>
-                    )}
-                  </ProductInfo>
-                </ProductCard>
-              ))}
+              {products.map((product, index) => {
+                const productStock = typeof product.stock === 'number' ? product.stock : null;
+                const isOutOfStock = productStock !== null && productStock <= 0;
+
+                return (
+                  <ProductCard
+                    key={product.sku || product.id || `${product.name}-${index}`}
+                    to={product.sku ? `/products/${product.sku}` : '/products'}
+                    initial={{ opacity: 0, y: 16 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.4, delay: Math.min(index * 0.02, 0.4) }}
+                  >
+                    <ProductImage
+                      src={product.image || '/placeholder-image.jpg'}
+                      alt={product.name}
+                      onError={(e) => {
+                        e.target.src = '/placeholder-image.jpg';
+                      }}
+                    />
+                    <ProductInfo>
+                      <ProductName>{product.name}</ProductName>
+                      <ProductPrice>{formatPrice(product.salePrice)}</ProductPrice>
+                      {productStock !== null && (
+                        <ProductStock $out={isOutOfStock}>
+                          {isOutOfStock ? 'Out of stock' : `${productStock} in stock`}
+                        </ProductStock>
+                      )}
+                      {product.shortDescription && (
+                        <ProductDescription>{product.shortDescription}</ProductDescription>
+                      )}
+                    </ProductInfo>
+                  </ProductCard>
+                );
+              })}
             </ProductsGrid>
           )}
         </ProductsWrapper>

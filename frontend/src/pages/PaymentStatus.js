@@ -7,6 +7,18 @@ import { useCart } from '../contexts/CartContext';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 const CHECKOUT_SELECTION_STORAGE_KEY = 'ics_checkout_selection';
+const resolveAuthHeaders = () => {
+  if (typeof window === 'undefined') {
+    return {};
+  }
+  const token = window.localStorage?.getItem('token');
+  if (!token) {
+    return {};
+  }
+  return {
+    Authorization: `Bearer ${token}`
+  };
+};
 
 const StatusContainer = styled.div`
   min-height: calc(100vh - 80px);
@@ -175,6 +187,8 @@ const PaymentStatus = () => {
           shipping: storedSelection.shipping || 0,
           tax: storedSelection.tax || 0,
           total: storedSelection.total || 0
+        }, {
+          headers: resolveAuthHeaders()
         });
 
         window.localStorage.removeItem(CHECKOUT_SELECTION_STORAGE_KEY);
@@ -183,7 +197,11 @@ const PaymentStatus = () => {
       } catch (error) {
         console.error('Error executing PayPal payment:', error);
         setStatus('error');
-        setErrorMessage(error.response?.data?.message || 'Payment confirmation failed. Please contact support or try again.');
+        if (error.response?.status === 401) {
+          setErrorMessage('We need you to sign in again before we can finalise this payment. Please log in and try once more.');
+        } else {
+          setErrorMessage(error.response?.data?.message || 'Payment confirmation failed. Please contact support or try again.');
+        }
       }
     };
 

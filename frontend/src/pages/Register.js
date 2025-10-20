@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import styled from 'styled-components';
 import { motion } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
+import useGoogleConfig from '../hooks/useGoogleConfig';
 
 const RegisterContainer = styled.div`
   min-height: calc(100vh - 70px);
@@ -272,8 +273,13 @@ const Register = () => {
     }
   }, [user, navigate]);
 
-  const googleClientId = process.env.REACT_APP_GOOGLE_CLIENT_ID;
-  const googleEnabled = !!googleClientId && !/your_google_client_id_here/i.test(googleClientId);
+  const {
+    clientId: googleClientId,
+    allowedOrigins: googleAllowedOrigins,
+    status: googleConfigStatus,
+    enabled: googleEnabled,
+  } = useGoogleConfig();
+  const googleLoading = googleConfigStatus === 'loading';
 
   const handleGoogleResponse = useCallback(async (response) => {
     try {
@@ -288,9 +294,13 @@ const Register = () => {
   }, [loginWithGoogle, navigate]);
 
   useEffect(() => {
-    if (!googleEnabled) {
+    if (!googleEnabled || googleLoading) {
       return;
     }
+
+    const parentOrigins = Array.from(
+      new Set([window.location.origin, ...(googleAllowedOrigins || [])])
+    );
 
     const initializeGoogle = () => {
       if (window.google) {
@@ -299,7 +309,7 @@ const Register = () => {
           callback: handleGoogleResponse,
           ux_mode: 'popup',
           auto_select: false,
-          allowed_parent_origin: [window.location.origin],
+          allowed_parent_origin: parentOrigins,
           context: 'signin'
         });
 
@@ -326,6 +336,7 @@ const Register = () => {
     script.src = 'https://accounts.google.com/gsi/client';
     script.async = true;
     script.defer = true;
+    script.id = 'google-client-script';
     script.onload = initializeGoogle;
     document.body.appendChild(script);
 
@@ -334,7 +345,13 @@ const Register = () => {
         script.parentNode.removeChild(script);
       }
     };
-  }, [googleEnabled, googleClientId, handleGoogleResponse]);
+  }, [
+    googleAllowedOrigins,
+    googleClientId,
+    googleEnabled,
+    googleLoading,
+    handleGoogleResponse
+  ]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -531,7 +548,7 @@ const Register = () => {
                 d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
               />
             </GoogleIcon>
-            Google Sign-In unavailable
+            {googleLoading ? 'Loading Google Sign-In…' : 'Google Sign-In unavailable'}
           </GoogleSignInButton>
         )}
 

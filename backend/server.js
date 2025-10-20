@@ -5,6 +5,7 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 const { connectDB } = require('./config/database');
+const { ensureDefaultAdmin } = require('./utils/ensureDefaultAdmin');
 
 dotenv.config();
 
@@ -71,6 +72,7 @@ app.use('*', (req, res) => {
 const startServer = async () => {
   try {
     await connectDB();
+    await ensureDefaultAdmin();
 
     const attemptListen = (port, attempt = 0) => {
       const server = app.listen(port, () => {

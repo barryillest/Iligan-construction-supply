@@ -71,8 +71,12 @@ A modern web application for construction supply management featuring a minimali
    Fill in the required API keys and configuration:
    - `MONGODB_URI` - MongoDB connection string
    - `JWT_SECRET` - JWT secret key
+   - `ADMIN_EMAIL` - Default admin email (auto-created if missing)
+   - `ADMIN_PASSWORD` - Default admin password
+   - `ADMIN_NAME` - Default admin display name
    - `GOOGLE_CLIENT_ID` - Google OAuth client ID
    - `GOOGLE_CLIENT_SECRET` - Google OAuth client secret
+   - `GOOGLE_ALLOWED_ORIGINS` - Comma-separated list of allowed JavaScript origins for Google Sign-In (default `http://localhost:3000`)
    - `BESTBUY_API_KEY` - BestBuy API key
    - `PAYPAL_CLIENT_ID` - PayPal sandbox client ID
    - `PAYPAL_CLIENT_SECRET` - PayPal sandbox client secret
@@ -101,6 +105,11 @@ A modern web application for construction supply management featuring a minimali
 3. Enable Google+ API
 4. Create OAuth 2.0 credentials
 5. Add authorized domains: `localhost:3000` for development
+
+> **Tip:** The frontend fetches the active Google client ID from the backend at runtime. Keep the server's `GOOGLE_CLIENT_ID` (and optional `GOOGLE_ALLOWED_ORIGINS`) up to date; `REACT_APP_GOOGLE_CLIENT_ID` is only used as a fallback when the backend configuration cannot be reached.
+
+### Default Credentials
+- Admin: `admin@gmail.com` / `admin123` (auto-created on server start; configure with `ADMIN_EMAIL`/`ADMIN_PASSWORD`)
 
 ### 2. PayPal Sandbox API
 1. Go to [PayPal Developer](https://developer.paypal.com/)

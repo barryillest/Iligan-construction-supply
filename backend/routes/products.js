@@ -23,7 +23,8 @@ const mockProducts = [
     longDescription: 'The DEWALT 20V MAX Cordless Drill/Driver features a high-performance motor that delivers 300 unit watts out (UWO) of power, completing a wide range of applications.',
     categoryPath: [{ name: 'Tools' }, { name: 'Power Tools' }],
     manufacturer: 'DEWALT',
-    category: 'tools'
+    category: 'tools',
+    stock: 24
   },
   {
     sku: 'SAW001',
@@ -83,7 +84,8 @@ const mockProducts = [
     longDescription: 'Grip-Rite drywall screws are designed for fastening drywall to wood studs in interior applications.',
     categoryPath: [{ name: 'Hardware' }, { name: 'Fasteners' }],
     manufacturer: 'Grip-Rite',
-    category: 'hardware'
+    category: 'hardware',
+    stock: 500
   },
   {
     sku: 'PIPE001',
@@ -147,7 +149,8 @@ const allProducts = [...mockProducts];
     longDescription: 'STABILA levels are known for their accuracy and durability in professional construction.',
     categoryPath: [{ name: 'Tools' }, { name: 'Measuring Tools' }],
     manufacturer: 'STABILA',
-    category: 'tools'
+    category: 'tools',
+    stock: 24
   },
 
   // Hardware & Fasteners
@@ -265,7 +268,8 @@ const allProducts = [...mockProducts];
     longDescription: 'Type I hard hat provides protection from falling objects and electrical hazards.',
     categoryPath: [{ name: 'Safety' }, { name: 'Head Protection' }],
     manufacturer: 'MSA',
-    category: 'safety'
+    category: 'safety',
+    stock: 40
   },
   {
     sku: 'GLASSES001',
@@ -277,7 +281,8 @@ const allProducts = [...mockProducts];
     longDescription: 'Comfortable safety glasses with wraparound design and impact resistance.',
     categoryPath: [{ name: 'Safety' }, { name: 'Eye Protection' }],
     manufacturer: '3M',
-    category: 'safety'
+    category: 'safety',
+    stock: 40
   },
 
   // Additional Power Tools
@@ -347,7 +352,8 @@ const allProducts = [...mockProducts];
     longDescription: 'Hot-dipped galvanized steel roofing nails for superior rust resistance. 50lb box contains approximately 14,000 nails.',
     categoryPath: [{ name: 'Fasteners' }],
     manufacturer: 'Grip-Rite',
-    category: 'fasteners'
+    category: 'fasteners',
+    stock: 500
   }
 ];
 
@@ -598,7 +604,8 @@ const additionalProducts = [
     longDescription: 'STABILA levels are known for their accuracy and durability in professional construction.',
     categoryPath: [{ name: 'Tools' }, { name: 'Measuring Tools' }],
     manufacturer: 'STABILA',
-    category: 'tools'
+    category: 'tools',
+    stock: 24,
   },
   {
     sku: 'HELMET001',
@@ -610,7 +617,8 @@ const additionalProducts = [
     longDescription: 'Lightweight and durable hard hat with comfortable suspension for all-day wear.',
     categoryPath: [{ name: 'Safety' }],
     manufacturer: '3M',
-    category: 'safety'
+    category: 'safety',
+    stock: 40,
   },
   {
     sku: 'NAIL001',
@@ -622,9 +630,9 @@ const additionalProducts = [
     longDescription: 'Hot-dipped galvanized steel roofing nails for superior rust resistance. 50lb box contains approximately 14,000 nails.',
     categoryPath: [{ name: 'Fasteners' }],
     manufacturer: 'Grip-Rite',
-    category: 'fasteners'
-  }
-];
+    category: 'fasteners',
+    stock: 500,
+  }];
 
 const staticProducts = [...mockProducts, ...additionalProducts];
 

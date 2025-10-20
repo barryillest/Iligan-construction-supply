@@ -87,6 +87,13 @@ const Savings = styled.div`
   font-weight: 600;
 `;
 
+const StockIndicator = styled.div`
+  font-size: 16px;
+  font-weight: 500;
+  color: ${props => props.$out ? 'var(--danger-color, #ff4d4f)' : 'var(--text-secondary)'};
+  margin-bottom: 16px;
+`;
+
 const Description = styled.div`
   margin-bottom: 32px;
 `;
@@ -288,6 +295,8 @@ const ProductDetail = () => {
   const { addToCart } = useCart();
   const { isAuthenticated, user } = useAuth();
   const isAdmin = user?.role === 'admin';
+  const productStock = typeof product?.stock === 'number' ? product.stock : null;
+  const isOutOfStock = productStock !== null && productStock <= 0;
 
   const fetchProduct = useCallback(async () => {
     try {
@@ -316,7 +325,19 @@ const ProductDetail = () => {
     }
 
     if (product) {
-      await addToCart(product);
+      if (isOutOfStock) {
+        toast.error('This product is currently out of stock');
+        return;
+      }
+      const success = await addToCart(product);
+      if (success) {
+        setProduct(prev => {
+          if (!prev || typeof prev.stock !== 'number') {
+            return prev;
+          }
+          return { ...prev, stock: Math.max(0, prev.stock - 1) };
+        });
+      }
     }
   };
 
@@ -330,9 +351,21 @@ const ProductDetail = () => {
       return;
     }
 
+    if (isOutOfStock) {
+      toast.error('This product is currently out of stock');
+      return;
+    }
+
     const productId = resolveCartProductId(product);
     const success = await addToCart(product);
     if (success) {
+      setProduct(prev => {
+        if (!prev || typeof prev.stock !== 'number') {
+          return prev;
+        }
+        return { ...prev, stock: Math.max(0, prev.stock - 1) };
+      });
+
       if (productId) {
         navigate('/checkout', { state: { selectedProductIds: [productId] } });
       } else {
@@ -447,6 +480,12 @@ const ProductDetail = () => {
               )}
             </PriceSection>
 
+            {productStock !== null && (
+              <StockIndicator $out={isOutOfStock}>
+                {isOutOfStock ? 'Out of stock' : `${productStock} in stock`}
+              </StockIndicator>
+            )}
+
             {product.shortDescription && (
               <Description>
                 <DescriptionTitle>Product Overview</DescriptionTitle>
@@ -485,18 +524,29 @@ const ProductDetail = () => {
                 <Actions>
                   <AddToCartButton
                     onClick={handleAddToCart}
-                    disabled={!isAuthenticated}
+                    disabled={!isAuthenticated || isOutOfStock}
                   >
                     <FiShoppingCart size={20} />
-                    Add to Cart
+                    {isOutOfStock ? 'Out of Stock' : 'Add to Cart'}
                   </AddToCartButton>
                   <BuyNowButton
                     onClick={handleBuyNow}
-                    disabled={!isAuthenticated}
+                    disabled={!isAuthenticated || isOutOfStock}
                   >
                     Buy Now
                   </BuyNowButton>
                 </Actions>
+
+                {isOutOfStock && (
+                  <div style={{
+                    fontSize: '14px',
+                    color: 'var(--danger-color, #ff4d4f)',
+                    textAlign: 'center',
+                    marginBottom: '16px'
+                  }}>
+                    This product is currently out of stock.
+                  </div>
+                )}
 
                 {!isAuthenticated && (
                   <div style={{

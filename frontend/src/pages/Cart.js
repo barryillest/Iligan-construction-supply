@@ -80,6 +80,12 @@ const ItemPrice = styled.div`
   color: var(--accent-color);
 `;
 
+const ItemStock = styled.div`
+  font-size: 13px;
+  color: ${props => props.$out ? 'var(--danger-color, #ff4d4f)' : 'var(--text-secondary)'};
+  margin-top: 6px;
+`;
+
 const QuantityControls = styled.div`
   display: flex;
   align-items: center;
@@ -325,45 +331,56 @@ const Cart = () => {
 
       <CartContent>
         <CartItems>
-          {cart.map((item, index) => (
-            <CartItem
-              key={item.productId}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.3, delay: index * 0.1 }}
-            >
-              <ItemImage
-                src={item.image || '/placeholder-image.jpg'}
-                alt={item.name}
-                onError={(e) => {
-                  e.target.src = '/placeholder-image.jpg';
-                }}
-              />
-              <ItemInfo>
-                <ItemName>{item.name}</ItemName>
-                <ItemPrice>{formatPrice(item.price)}</ItemPrice>
-              </ItemInfo>
-              <QuantityControls>
-                <QuantityButton
-                  onClick={() => handleQuantityChange(item.productId, item.quantity - 1)}
-                  disabled={item.quantity <= 1}
-                >
-                  <FiMinus size={14} />
-                </QuantityButton>
-                <QuantityDisplay>{item.quantity}</QuantityDisplay>
-                <QuantityButton
-                  onClick={() => handleQuantityChange(item.productId, item.quantity + 1)}
-                >
-                  <FiPlus size={14} />
-                </QuantityButton>
-              </QuantityControls>
-              <RemoveButton
-                onClick={() => removeFromCart(item.productId)}
+          {cart.map((item, index) => {
+            const availableStock = typeof item.availableStock === 'number' ? item.availableStock : null;
+            const cannotIncrease = availableStock !== null && availableStock <= 0;
+
+            return (
+              <CartItem
+                key={item.productId}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.3, delay: index * 0.1 }}
               >
-                <FiTrash2 size={16} />
-              </RemoveButton>
-            </CartItem>
-          ))}
+                <ItemImage
+                  src={item.image || '/placeholder-image.jpg'}
+                  alt={item.name}
+                  onError={(e) => {
+                    e.target.src = '/placeholder-image.jpg';
+                  }}
+                />
+                <ItemInfo>
+                  <ItemName>{item.name}</ItemName>
+                  <ItemPrice>{formatPrice(item.price)}</ItemPrice>
+                  {availableStock !== null && (
+                    <ItemStock $out={cannotIncrease}>
+                      {cannotIncrease ? 'No additional stock available' : `${availableStock} remaining`}
+                    </ItemStock>
+                  )}
+                </ItemInfo>
+                <QuantityControls>
+                  <QuantityButton
+                    onClick={() => handleQuantityChange(item.productId, item.quantity - 1)}
+                    disabled={item.quantity <= 1}
+                  >
+                    <FiMinus size={14} />
+                  </QuantityButton>
+                  <QuantityDisplay>{item.quantity}</QuantityDisplay>
+                  <QuantityButton
+                    onClick={() => handleQuantityChange(item.productId, item.quantity + 1)}
+                    disabled={cannotIncrease}
+                  >
+                    <FiPlus size={14} />
+                  </QuantityButton>
+                </QuantityControls>
+                <RemoveButton
+                  onClick={() => removeFromCart(item.productId)}
+                >
+                  <FiTrash2 size={16} />
+                </RemoveButton>
+              </CartItem>
+            );
+          })}
         </CartItems>
 
         <CartSummary>

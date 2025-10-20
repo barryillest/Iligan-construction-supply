@@ -169,6 +169,13 @@ const ProductPrice = styled.div`
   margin-bottom: 12px;
 `;
 
+const ProductStock = styled.div`
+  font-size: 14px;
+  font-weight: 500;
+  color: ${props => props.$out ? 'var(--danger-color, #ff4d4f)' : 'var(--text-secondary)'};
+  margin-bottom: 12px;
+`;
+
 const ProductDescription = styled.p`
   color: var(--text-secondary);
   font-size: 14px;
@@ -390,6 +397,23 @@ const Products = () => {
     }
   };
 
+  const adjustProductStockInState = (targetProductId, delta) => {
+    if (!targetProductId || !Number.isFinite(delta)) {
+      return;
+    }
+
+    setProducts(prevProducts =>
+      prevProducts.map(item => {
+        const itemId = resolveCartProductId(item);
+        if (itemId === targetProductId && typeof item.stock === 'number') {
+          const updatedStock = Math.max(0, item.stock + delta);
+          return { ...item, stock: updatedStock };
+        }
+        return item;
+      })
+    );
+  };
+
   const handleAddToCart = async (e, product) => {
     e.preventDefault();
     e.stopPropagation();
@@ -399,7 +423,11 @@ const Products = () => {
       return;
     }
 
-    await addToCart(product);
+    const productId = resolveCartProductId(product);
+    const success = await addToCart(product);
+    if (success && productId) {
+      adjustProductStockInState(productId, -1);
+    }
   };
 
   const handleBuyNow = async (e, product) => {
@@ -415,6 +443,7 @@ const Products = () => {
     const success = await addToCart(product);
     if (success) {
       if (productId) {
+        adjustProductStockInState(productId, -1);
         navigate('/checkout', { state: { selectedProductIds: [productId] } });
       } else {
         navigate('/checkout');
@@ -513,65 +542,75 @@ const Products = () => {
       </FiltersBar>
 
       <ProductsGrid view={view}>
-        {products.map((product, index) => (
-          <ProductCard
-            key={`${product.sku}-${index}`}
-            to={`/products/${product.sku}`}
-            view={view}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, delay: index * 0.05 }}
-          >
-            <ProductImage
-              src={product.image || '/placeholder-image.jpg'}
-              alt={product.name}
+        {products.map((product, index) => {
+          const productStock = typeof product.stock === 'number' ? product.stock : null;
+          const isOutOfStock = productStock !== null && productStock <= 0;
+
+          return (
+            <ProductCard
+              key={`${product.sku}-${index}`}
+              to={`/products/${product.sku}`}
               view={view}
-              onError={(e) => {
-                e.target.src = '/placeholder-image.jpg';
-              }}
-            />
-            <ProductInfo>
-              <ProductName>{product.name}</ProductName>
-              <ProductPrice>{formatPrice(product.salePrice)}</ProductPrice>
-              {view === 'list' && product.shortDescription && (
-                <ProductDescription>{product.shortDescription}</ProductDescription>
-              )}
-              {isAdmin ? (
-                <AdminActions>
-                  <AdminActionButton onClick={(e) => handleAdminEdit(e, product)}>
-                    <FiEdit3 size={16} />
-                    Edit
-                  </AdminActionButton>
-                  <AdminActionButton
-                    danger
-                    onClick={(e) => handleAdminDelete(e, product)}
-                    disabled={processingSku === product.sku}
-                  >
-                    <FiTrash2 size={16} />
-                    {processingSku === product.sku ? 'Removing...' : 'Delete'}
-                  </AdminActionButton>
-                </AdminActions>
-              ) : (
-                <ProductActions>
-                  <AddToCartButton
-                    onClick={(e) => handleAddToCart(e, product)}
-                    disabled={!isAuthenticated}
-                  >
-                    <FiShoppingCart size={16} />
-                    Add to Cart
-                  </AddToCartButton>
-                  <BuyNowButton
-                    onClick={(e) => handleBuyNow(e, product)}
-                    disabled={!isAuthenticated}
-                  >
-                    <FiArrowRight size={16} />
-                    Buy Now
-                  </BuyNowButton>
-                </ProductActions>
-              )}
-            </ProductInfo>
-          </ProductCard>
-        ))}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: index * 0.05 }}
+            >
+              <ProductImage
+                src={product.image || '/placeholder-image.jpg'}
+                alt={product.name}
+                view={view}
+                onError={(e) => {
+                  e.target.src = '/placeholder-image.jpg';
+                }}
+              />
+              <ProductInfo>
+                <ProductName>{product.name}</ProductName>
+                <ProductPrice>{formatPrice(product.salePrice)}</ProductPrice>
+                {productStock !== null && (
+                  <ProductStock $out={isOutOfStock}>
+                    {isOutOfStock ? 'Out of stock' : `${productStock} in stock`}
+                  </ProductStock>
+                )}
+                {view === 'list' && product.shortDescription && (
+                  <ProductDescription>{product.shortDescription}</ProductDescription>
+                )}
+                {isAdmin ? (
+                  <AdminActions>
+                    <AdminActionButton onClick={(e) => handleAdminEdit(e, product)}>
+                      <FiEdit3 size={16} />
+                      Edit
+                    </AdminActionButton>
+                    <AdminActionButton
+                      danger
+                      onClick={(e) => handleAdminDelete(e, product)}
+                      disabled={processingSku === product.sku}
+                    >
+                      <FiTrash2 size={16} />
+                      {processingSku === product.sku ? 'Removing...' : 'Delete'}
+                    </AdminActionButton>
+                  </AdminActions>
+                ) : (
+                  <ProductActions>
+                    <AddToCartButton
+                      onClick={(e) => handleAddToCart(e, product)}
+                      disabled={!isAuthenticated || isOutOfStock}
+                    >
+                      <FiShoppingCart size={16} />
+                      {isOutOfStock ? 'Out of Stock' : 'Add to Cart'}
+                    </AddToCartButton>
+                    <BuyNowButton
+                      onClick={(e) => handleBuyNow(e, product)}
+                      disabled={!isAuthenticated || isOutOfStock}
+                    >
+                      <FiArrowRight size={16} />
+                      Buy Now
+                    </BuyNowButton>
+                  </ProductActions>
+                )}
+              </ProductInfo>
+            </ProductCard>
+          );
+        })}
       </ProductsGrid>
 
       {loading && (

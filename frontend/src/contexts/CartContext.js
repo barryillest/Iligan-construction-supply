@@ -19,6 +19,14 @@ const isBrowser = typeof window !== 'undefined';
 
 const ensureArray = (value) => (Array.isArray(value) ? value : []);
 
+const getAuthHeaders = () => {
+  if (!isBrowser) {
+    return {};
+  }
+  const token = window.localStorage?.getItem('token');
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
+
 const buildStorageKey = (userId) => {
   if (!userId) {
     return `${BASE_STORAGE_KEY}_guest`;
@@ -84,13 +92,26 @@ const normalizeCartItems = (items) => {
       const normalizedQuantity = Math.max(1, Math.round(quantity));
       const parsedPrice = Number(item?.price);
 
-      return {
+      const normalized = {
         productId,
         name: item?.name ?? '',
         price: Number.isFinite(parsedPrice) ? parsedPrice : 0,
         quantity: normalizedQuantity,
         image: item?.image ?? ''
       };
+
+      if (Object.prototype.hasOwnProperty.call(item || {}, 'availableStock')) {
+        if (item?.availableStock === null) {
+          normalized.availableStock = null;
+        } else {
+          const parsedStock = Number(item.availableStock);
+          if (Number.isFinite(parsedStock)) {
+            normalized.availableStock = parsedStock;
+          }
+        }
+      }
+
+      return normalized;
     })
     .filter(Boolean);
 };
@@ -210,34 +231,40 @@ export const CartProvider = ({ children }) => {
     });
   }, []);
 
-const syncCartToServer = useCallback(
-  async (items) => {
-    const normalizedItems = normalizeCartItems(items);
+  const syncCartToServer = useCallback(
+    async (items) => {
+      const normalizedItems = normalizeCartItems(items);
 
-    if (!isAuthenticated || authLoading || normalizedItems.length === 0) {
-      updateCartState(normalizedItems);
-      hasSyncedRef.current = true;
-      return normalizedItems;
-    }
+      if (!isAuthenticated || authLoading || normalizedItems.length === 0) {
+        updateCartState(normalizedItems);
+        hasSyncedRef.current = true;
+        return normalizedItems;
+      }
 
-    try {
-      const response = await axios.post(`${API_URL}/api/users/cart/sync`, {
-        items: normalizedItems
-      });
+      try {
+        const response = await axios.post(
+          `${API_URL}/api/users/cart/sync`,
+          {
+            items: normalizedItems
+          },
+          {
+            headers: getAuthHeaders()
+          }
+        );
 
-      const syncedCart = normalizeCartItems(response.data?.cart || normalizedItems);
-      updateCartState(syncedCart);
-      hasSyncedRef.current = true;
-      return syncedCart;
-    } catch (error) {
-      console.error('Error syncing cart:', error);
-      updateCartState(normalizedItems);
-      hasSyncedRef.current = true;
-      return normalizedItems;
-    }
-  },
-  [authLoading, isAuthenticated, updateCartState]
-);
+        const syncedCart = normalizeCartItems(response.data?.cart || normalizedItems);
+        updateCartState(syncedCart);
+        hasSyncedRef.current = true;
+        return syncedCart;
+      } catch (error) {
+        console.error('Error syncing cart:', error);
+        updateCartState(normalizedItems);
+        hasSyncedRef.current = true;
+        return normalizedItems;
+      }
+    },
+    [authLoading, isAuthenticated, updateCartState]
+  );
 
   const fetchCart = useCallback(async () => {
     if (!isAuthenticated || authLoading) {
@@ -246,7 +273,9 @@ const syncCartToServer = useCallback(
 
     try {
       setLoading(true);
-      const response = await axios.get(`${API_URL}/api/users/cart`);
+      const response = await axios.get(`${API_URL}/api/users/cart`, {
+        headers: getAuthHeaders()
+      });
       const serverCart = normalizeCartItems(response.data?.cart);
 
       if (serverCart.length === 0) {
@@ -298,7 +327,10 @@ const syncCartToServer = useCallback(
     try {
       const response = await axios.post(
         `${API_URL}/api/users/cart/add`,
-        cartItem
+        cartItem,
+        {
+          headers: getAuthHeaders()
+        }
       );
 
       const updatedCart = normalizeCartItems(response.data?.cart);
@@ -322,7 +354,10 @@ const syncCartToServer = useCallback(
     try {
       const response = await axios.put(
         `${API_URL}/api/users/cart/update`,
-        { productId, quantity }
+        { productId, quantity },
+        {
+          headers: getAuthHeaders()
+        }
       );
 
       const updatedCart = normalizeCartItems(response.data?.cart);
@@ -349,7 +384,10 @@ const syncCartToServer = useCallback(
   const removeFromCart = async (productId) => {
     try {
       const response = await axios.delete(
-        `${API_URL}/api/users/cart/remove/${productId}`
+        `${API_URL}/api/users/cart/remove/${productId}`,
+        {
+          headers: getAuthHeaders()
+        }
       );
 
       const updatedCart = normalizeCartItems(response.data?.cart);
@@ -366,7 +404,9 @@ const syncCartToServer = useCallback(
 
   const clearCart = async () => {
     try {
-      await axios.delete(`${API_URL}/api/users/cart/clear`);
+      await axios.delete(`${API_URL}/api/users/cart/clear`, {
+        headers: getAuthHeaders()
+      });
       updateCartState([]);
       hasSyncedRef.current = true;
       toast.success('Cart cleared');
