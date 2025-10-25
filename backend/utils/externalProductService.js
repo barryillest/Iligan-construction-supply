@@ -20,12 +20,6 @@ const pick = (...candidates) =>
       value.trim().toLowerCase() !== 'undefined'
   )?.trim() || null;
 
-conts pick = (...candidates) =>
-  candidate.find(
-    (value) =>
-      typeof value ==='string' &&
-      value 
-  )
 const stripTags = (text = '') =>
   typeof text === 'string'
     ? text.replace(/<\/?[^>]+(>|$)/g, '').replace(/\s+/g, ' ').trim()

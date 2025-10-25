@@ -3,6 +3,10 @@ const axios = require('axios');
 const { authenticateToken, requireAdmin } = require('./auth');
 const Product = require('../models/Product');
 const CatalogExclusion = require('../models/CatalogExclusion');
+const {
+  fetchExternalProduct,
+  fetchDemoDatasetProduct,
+} = require('../utils/externalProductService');
 
 const router = express.Router();
 
@@ -882,6 +886,71 @@ router.get('/categories/list', async (req, res) => {
   } catch (error) {
     console.error('Categories error:', error);
     res.status(500).json({ message: 'Error fetching categories' });
+  }
+});
+
+// Admin: import product details from dataset or external URL
+router.post('/import', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { sourceUrl, dataset, datasetProductId } = req.body || {};
+
+    const trimmedSourceUrl =
+      typeof sourceUrl === 'string' && sourceUrl.trim().length > 0
+        ? sourceUrl.trim()
+        : null;
+    const trimmedDataset =
+      typeof dataset === 'string' && dataset.trim().length > 0 ? dataset.trim() : null;
+
+    if (!trimmedSourceUrl && !trimmedDataset) {
+      return res
+        .status(400)
+        .json({ message: 'Provide either a sourceUrl or a dataset to import from.' });
+    }
+
+    if (trimmedSourceUrl && trimmedDataset) {
+      return res
+        .status(400)
+        .json({ message: 'Choose either dataset import or URL import, not both.' });
+    }
+
+    let payload;
+    if (trimmedDataset) {
+      payload = await fetchDemoDatasetProduct(trimmedDataset, datasetProductId);
+    } else {
+      payload = await fetchExternalProduct(trimmedSourceUrl);
+    }
+
+    if (!payload || !payload.product) {
+      return res
+        .status(502)
+        .json({ message: 'The import service returned an unexpected response.' });
+    }
+
+    return res.json({
+      product: payload.product,
+      meta: payload.raw || null,
+    });
+  } catch (error) {
+    console.error('Import product error:', error);
+    const candidateStatus =
+      error?.status ||
+      error?.statusCode ||
+      error?.response?.status ||
+      error?.cause?.status;
+    const status =
+      typeof candidateStatus === 'number' && candidateStatus >= 400 && candidateStatus < 600
+        ? candidateStatus
+        : 500;
+
+    const message =
+      error?.response?.data?.message ||
+      error?.message ||
+      'Failed to import product details. Please try again.';
+
+    return res.status(status).json({
+      message: status === 500 ? 'Failed to import product details.' : message,
+      ...(status !== 500 && message ? { details: message } : {}),
+    });
   }
 });
 
