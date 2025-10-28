@@ -96,8 +96,8 @@ router.post('/create-payment', authenticateToken, async (req, res) => {
         payment_method: 'paypal'
       },
       redirect_urls: {
-        return_url: returnUrl || 'http://localhost:3000/payment/success',
-        cancel_url: cancelUrl || 'http://localhost:3000/payment/cancel'
+        return_url: returnUrl || `${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment/success`,
+        cancel_url: cancelUrl || `${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment/cancel`
       },
       transactions: [{
         item_list: {

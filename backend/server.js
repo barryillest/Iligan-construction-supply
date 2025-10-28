@@ -37,7 +37,7 @@ app.use(helmet());
 app.use(limiter);
 app.use(morgan('combined'));
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' ? 'your-production-url' : 'http://localhost:3000',
+  origin: process.env.ALLOWED_ORIGINS || 'http://localhost:3000',
   credentials: true
 }));
 app.use(express.json({ limit: '10mb' }));
